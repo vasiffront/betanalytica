@@ -71,6 +71,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .btn-track{background:rgba(88,166,255,.12);color:var(--blue)}
 .btn-track:hover{background:rgba(88,166,255,.22)}
 .btn-won{background:rgba(63,185,80,.12);color:var(--green)}
+.stake-inp{width:90px;background:var(--bg);border:1px solid var(--blue);color:var(--purple);border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700;text-align:right}
+.stake-inp:focus{outline:none;border-color:var(--purple)}
 .btn-won:hover{background:rgba(63,185,80,.25)}
 .btn-lost{background:rgba(248,81,73,.12);color:var(--red)}
 .btn-lost:hover{background:rgba(248,81,73,.25)}
@@ -328,6 +330,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         <div class="bw-edit">
           <input id="bw-input" class="fc" type="number" min="0" placeholder="Введите баланс ₽" onkeydown="if(event.key==='Enter')applyBalance()">
           <button class="btn-sm btn-track" onclick="applyBalance()"><i class="fa-solid fa-check"></i> Установить</button>
+          <button class="btn-sm" style="background:rgba(139,148,158,.12);color:var(--muted)" onclick="recalcStakes()" title="Пересчитать суммы ставок по текущему балансу"><i class="fa-solid fa-rotate"></i> Пересчитать</button>
         </div>
       </div>
     </div>
@@ -753,6 +756,47 @@ function deleteTracked(id) {
   if ($('tab-express').classList.contains('active')) fetchExpress();
 }
 
+function recalcStakes() {
+  if (!currentBalance && currentBalance !== 0) return;
+
+  // Собрать pending-ставки в хронологическом порядке (старые первые)
+  const pending = tracker.filter(t => t.result === null).slice().reverse();
+  if (!pending.length) { toast('Нет ставок в ожидании', 'err'); return; }
+
+  // Вернуть все зарезервированные ставки обратно на баланс
+  let pool = currentBalance;
+  pending.forEach(t => { pool += t.stake; });
+
+  // Перераспределить последовательно по kelly% от остатка
+  pending.forEach(t => {
+    const newStake = Math.max(Math.round(pool * t.kelly / 100), 0);
+    t.stake      = newStake;
+    t.bal_before = pool;
+    pool         = Math.max(pool - newStake, 0);
+  });
+
+  currentBalance = pool;
+  saveState();
+  updateHeader();
+  renderTracker();
+  toast(`Ставки пересчитаны | Свободный остаток: ${fmt(currentBalance)} ₽`);
+}
+
+function updateStake(id, rawVal) {
+  const t = tracker.find(x => x.id === id);
+  if (!t || t.result !== null) return;
+  const newStake = Math.max(Math.round(parseFloat(rawVal) || 0), 0);
+  if (newStake === t.stake) return;
+  currentBalance += t.stake;            // вернуть старую ставку
+  currentBalance = Math.max(currentBalance - newStake, 0); // снять новую
+  t.stake = newStake;
+  t.bal_before = currentBalance + newStake;
+  saveState();
+  updateHeader();
+  renderTracker();
+  toast(`Ставка обновлена: ${fmt(newStake)} ₽ | Баланс: ${fmt(currentBalance)} ₽`);
+}
+
 function renderTracker() {
   renderBalanceWidget();
 
@@ -832,7 +876,9 @@ function renderTracker() {
           Итог. кэф: <b style="color:var(--blue)">${t.odd}</b>
           &nbsp;·&nbsp; Вер: ${t.prob}%
           &nbsp;·&nbsp; EV: <b style="color:var(--green)">${t.ev > 0 ? '+' : ''}${t.ev}%</b>
-          &nbsp;·&nbsp; Ставка: <b style="color:var(--purple)">${fmt(t.stake)} ₽</b>
+          &nbsp;·&nbsp; Ставка: ${t.result === null
+            ? `<input class="stake-inp" type="number" min="0" value="${t.stake}" onchange="updateStake(${t.id},this.value)" title="Изменить ставку"> ₽`
+            : `<b style="color:var(--purple)">${fmt(t.stake)} ₽</b>`}
           ${profitLine ? '&nbsp;·&nbsp;' + profitLine : ''}
           ${balAfter !== null ? `&nbsp;·&nbsp; Баланс: <b style="color:var(--text)">${fmt(balAfter)} ₽</b>` : ''}
           <br><span style="font-size:10px">${t.at}</span>
@@ -852,7 +898,9 @@ function renderTracker() {
         <b style="color:var(--text)">${t.name}</b> @ <b style="color:var(--blue)">${t.odd}</b>
         &nbsp;·&nbsp; Вер: ${t.prob}%
         &nbsp;·&nbsp; Kelly: ${t.kelly}%
-        &nbsp;·&nbsp; Ставка: <b style="color:var(--purple)">${fmt(t.stake)} ₽</b>
+        &nbsp;·&nbsp; Ставка: ${t.result === null
+          ? `<input class="stake-inp" type="number" min="0" value="${t.stake}" onchange="updateStake(${t.id},this.value)" title="Изменить ставку"> ₽`
+          : `<b style="color:var(--purple)">${fmt(t.stake)} ₽</b>`}
         ${profitLine ? '&nbsp;·&nbsp;' + profitLine : ''}
         ${balAfter !== null ? `&nbsp;·&nbsp; Баланс: <b style="color:var(--text)">${fmt(balAfter)} ₽</b>` : ''}
         <br><span style="font-size:10px">${t.at}</span>
