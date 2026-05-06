@@ -1329,7 +1329,7 @@ async function selectFbMatch(idx) {
   nameEl.innerHTML = '<span class="spinner"></span> Загрузка статистики…';
 
   try {
-    const r = await fetch(`/football_stats?home_id=${m.home_id}&away_id=${m.away_id}`);
+    const r = await fetch(`/football_stats?home_id=${m.home_id}&away_id=${m.away_id}&home_form=${m.home_form||''}&away_form=${m.away_form||''}`);
     const s = await r.json();
     if (s.error) { toast('Ошибка статистики: ' + s.error, 'err'); return; }
 

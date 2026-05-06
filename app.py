@@ -325,16 +325,15 @@ def build_express():
     return jsonify({"alternatives": results})
 
 
-# ─── Football Today (Sofascore) ───────────────────────────────────────────────
+# ─── Football Today (ESPN unofficial API) ─────────────────────────────────────
 
-_SOFA = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Referer':    'https://www.sofascore.com/',
-    'Accept':     'application/json, text/plain, */*',
-    'Origin':     'https://www.sofascore.com',
-}
+_ESPN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/all/scoreboard'
 _MSK  = timezone(timedelta(hours=3))
 _sched_cache = {'date': None, 'data': None, '_lock': threading.Lock()}
+
+
+def _form_pts(form_str):
+    return sum(3 if c == 'W' else 1 if c == 'D' else 0 for c in (form_str or '')[-5:])
 
 
 @app.route('/football_today')
@@ -344,30 +343,33 @@ def football_today():
         if _sched_cache['date'] == today and _sched_cache['data']:
             return jsonify(_sched_cache['data'])
     try:
-        r = _req.get(
-            f'https://api.sofascore.com/api/v1/sport/football/scheduled-events/{today}',
-            headers=_SOFA, timeout=10
-        )
+        r = _req.get(f'{_ESPN}?dates={today.replace("-","")}&limit=200', timeout=10)
         r.raise_for_status()
-        events = r.json().get('events', [])
         matches = []
-        for ev in events:
-            if ev.get('status', {}).get('type') not in ('notstarted', 'scheduled'):
+        for ev in r.json().get('events', []):
+            comp = (ev.get('competitions') or [{}])[0]
+            if comp.get('status', {}).get('type', {}).get('state') == 'post':
                 continue
-            home = ev.get('homeTeam', {})
-            away = ev.get('awayTeam', {})
-            if not home.get('id') or not away.get('id'):
+            cs = comp.get('competitors', [])
+            if len(cs) < 2:
                 continue
-            ts = ev.get('startTimestamp', 0)
-            tour = ev.get('tournament', {})
+            home = next((c for c in cs if c.get('homeAway') == 'home'), cs[0])
+            away = next((c for c in cs if c.get('homeAway') == 'away'), cs[1])
+            ts = ev.get('date', '')
+            try:
+                t = datetime.fromisoformat(ts.replace('Z', '+00:00')).astimezone(_MSK).strftime('%H:%M')
+            except Exception:
+                t = '—'
             matches.append({
-                'home':    home.get('name', ''),
-                'away':    away.get('name', ''),
-                'home_id': home.get('id'),
-                'away_id': away.get('id'),
-                'league':  tour.get('name', ''),
-                'country': tour.get('category', {}).get('name', ''),
-                'time':    datetime.fromtimestamp(ts, tz=_MSK).strftime('%H:%M') if ts else '—',
+                'home':      home.get('team', {}).get('displayName', ''),
+                'away':      away.get('team', {}).get('displayName', ''),
+                'home_id':   home.get('team', {}).get('id', ''),
+                'away_id':   away.get('team', {}).get('id', ''),
+                'home_form': home.get('form') or '',
+                'away_form': away.get('form') or '',
+                'league':    '',
+                'country':   '',
+                'time':      t,
             })
         matches.sort(key=lambda x: x['time'])
         result = {'matches': matches, 'total': len(matches), 'date': today}
@@ -381,38 +383,47 @@ def football_today():
 
 @app.route('/football_stats')
 def football_stats():
-    home_id = request.args.get('home_id', type=int)
-    away_id = request.args.get('away_id', type=int)
+    home_id    = request.args.get('home_id', '')
+    away_id    = request.args.get('away_id', '')
+    home_form  = request.args.get('home_form', '')
+    away_form  = request.args.get('away_form', '')
     if not home_id or not away_id:
         return jsonify({'error': 'Missing team IDs'}), 400
+    try:
+        end   = date.today()
+        start = end - timedelta(days=14)
+        r = _req.get(
+            f'{_ESPN}?dates={start.strftime("%Y%m%d")}-{end.strftime("%Y%m%d")}&limit=1000',
+            timeout=15
+        )
+        r.raise_for_status()
+        finished = [e for e in r.json().get('events', [])
+                    if e['competitions'][0].get('status', {}).get('type', {}).get('state') == 'post']
 
-    def get_stats(team_id):
-        try:
-            r = _req.get(
-                f'https://api.sofascore.com/api/v1/team/{team_id}/events/last/0',
-                headers=_SOFA, timeout=8
-            )
-            evs = r.json().get('events', [])
-            finished = [e for e in evs if e.get('status', {}).get('type') == 'finished'][-5:]
-            scored = conceded = form_pts = 0
-            for e in finished:
-                is_home = (e.get('homeTeam') or {}).get('id') == team_id
-                hs  = (e.get('homeScore') or {}).get('current', 0) or 0
-                aws = (e.get('awayScore') or {}).get('current', 0) or 0
-                if is_home:
-                    scored += hs; conceded += aws
-                    form_pts += 3 if hs > aws else (1 if hs == aws else 0)
-                else:
-                    scored += aws; conceded += hs
-                    form_pts += 3 if aws > hs else (1 if aws == hs else 0)
-            return scored, conceded, form_pts, max(len(finished), 1)
-        except Exception:
-            return 0, 0, 7, 5
+        def get_goals(tid, last_n=5):
+            rows = []
+            for ev in finished:
+                cs = ev['competitions'][0].get('competitors', [])
+                me    = next((c for c in cs if c.get('team', {}).get('id') == tid), None)
+                other = next((c for c in cs if c.get('team', {}).get('id') != tid), None)
+                if me and other:
+                    try:
+                        rows.append((int(float(str(me.get('score', 0)))),
+                                     int(float(str(other.get('score', 0))))))
+                    except Exception:
+                        pass
+            rows = rows[-last_n:]
+            if not rows:
+                return 0, 0, last_n
+            return sum(s for s, _ in rows), sum(c for _, c in rows), len(rows)
 
-    hs, hc, fh, hg = get_stats(home_id)
-    as_, ac, fa, ag = get_stats(away_id)
-    return jsonify({'hs': hs, 'hc': hc, 'as': as_, 'ac': ac,
-                    'fh': fh, 'fa': fa, 'ng': max(hg, ag)})
+        hs, hc, hg = get_goals(home_id)
+        as_, ac, ag = get_goals(away_id)
+        return jsonify({'hs': hs, 'hc': hc, 'as': as_, 'ac': ac,
+                        'fh': _form_pts(home_form), 'fa': _form_pts(away_form),
+                        'ng': max(hg, ag, 1)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == "__main__":
