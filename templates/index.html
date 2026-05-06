@@ -662,12 +662,13 @@ function trackExpress(idx) {
     grade:      alt.grade,
     odd:        alt.total_odd,
     prob:       alt.total_prob,
-    kelly:      alt.kelly,
-    ev:         alt.ev,
+    kelly:         alt.kelly,
+    ev:            alt.ev,
     stake,
-    bal_before: currentBalance + stake,
-    result:     null,
-    at:         new Date().toLocaleString('ru')
+    bal_before:    currentBalance + stake,
+    stakeDeducted: true,
+    result:        null,
+    at:            new Date().toLocaleString('ru')
   };
   tracker.unshift(entry);
   saveState();
@@ -698,10 +699,11 @@ function trackBet(info) {
     prob:       info.prob,
     kelly:      info.kelly,
     grade:      info.grade,
-    stake:      stake,
-    bal_before: currentBalance + stake,
-    result:     null,
-    at:         new Date().toLocaleString('ru')
+    stake:          stake,
+    bal_before:     currentBalance + stake,
+    stakeDeducted:  true,
+    result:         null,
+    at:             new Date().toLocaleString('ru')
   };
   tracker.unshift(entry);
   saveState();
@@ -757,29 +759,29 @@ function deleteTracked(id) {
 }
 
 function recalcStakes() {
-  if (!currentBalance && currentBalance !== 0) return;
-
-  // Собрать pending-ставки в хронологическом порядке (старые первые)
   const pending = tracker.filter(t => t.result === null).slice().reverse();
   if (!pending.length) { toast('Нет ставок в ожидании', 'err'); return; }
 
-  // Вернуть все зарезервированные ставки обратно на баланс
-  let pool = currentBalance;
-  pending.forEach(t => { pool += t.stake; });
+  // Return only stakes that were truly deducted (stakeDeducted flag).
+  // Old entries (no flag) were added before deduction logic — their stake was never
+  // subtracted from currentBalance, so adding them back would inflate the pool.
+  const deductedTotal = pending.reduce((sum, t) => sum + (t.stakeDeducted ? t.stake : 0), 0);
+  let pool = currentBalance + deductedTotal;
+  const totalPool = pool;
 
-  // Перераспределить последовательно по kelly% от остатка
   pending.forEach(t => {
-    const newStake = Math.max(Math.round(pool * t.kelly / 100), 0);
-    t.stake      = newStake;
-    t.bal_before = pool;
-    pool         = Math.max(pool - newStake, 0);
+    const newStake = Math.max(Math.min(Math.round(pool * t.kelly / 100), pool), 0);
+    t.stake         = newStake;
+    t.bal_before    = pool;
+    t.stakeDeducted = true;
+    pool            = pool - newStake;
   });
 
   currentBalance = pool;
   saveState();
   updateHeader();
   renderTracker();
-  toast(`Ставки пересчитаны | Свободный остаток: ${fmt(currentBalance)} ₽`);
+  toast(`Ставки пересчитаны | Итого ставок: ${fmt(totalPool - pool)} ₽ | Свободно: ${fmt(pool)} ₽`);
 }
 
 function updateStake(id, rawVal) {
