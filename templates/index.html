@@ -824,10 +824,6 @@ function renderTracker() {
     } else {
       resultBadge = `<span style="color:var(--yellow);font-size:12px"><i class="fa-solid fa-clock"></i> Ожидание</span>`;
     }
-    const balAfter = t.result === 'W'
-      ? t.bal_before + Math.round(t.stake * (t.odd - 1))
-      : t.result === 'L' ? t.bal_before - t.stake : null;
-
     const actBtns = `
       ${t.result === null ? `
         <button class="btn-sm btn-won"  onclick="setResult(${t.id},'W')"><i class="fa-solid fa-check"></i> Выиграл</button>
@@ -862,7 +858,6 @@ function renderTracker() {
           &nbsp;·&nbsp; EV: <b style="color:var(--green)">${t.ev > 0 ? '+' : ''}${t.ev}%</b>
           &nbsp;·&nbsp; Ставка: <b style="color:var(--purple)">${fmt(t.stake)} ₽</b>
           ${profitLine ? '&nbsp;·&nbsp;' + profitLine : ''}
-          ${balAfter !== null ? `&nbsp;·&nbsp; Баланс: <b style="color:var(--text)">${fmt(balAfter)} ₽</b>` : ''}
           <br><span style="font-size:10px">${t.at}</span>
         </div>
         <div class="tbet-actions">${actBtns}</div>
@@ -882,7 +877,6 @@ function renderTracker() {
         &nbsp;·&nbsp; Kelly: ${t.kelly}%
         &nbsp;·&nbsp; Ставка: <b style="color:var(--purple)">${fmt(t.stake)} ₽</b>
         ${profitLine ? '&nbsp;·&nbsp;' + profitLine : ''}
-        ${balAfter !== null ? `&nbsp;·&nbsp; Баланс: <b style="color:var(--text)">${fmt(balAfter)} ₽</b>` : ''}
         <br><span style="font-size:10px">${t.at}</span>
       </div>
       <div class="tbet-actions">${actBtns}</div>

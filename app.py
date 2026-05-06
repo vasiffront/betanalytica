@@ -112,10 +112,10 @@ def kelly_fraction(prob, odd):
 
 def dynamic_kelly(k, conf):
     """Fractional Kelly scaled by confidence tier."""
-    if conf < 40: return k * 0.15
-    if conf < 55: return k * 0.30
-    if conf < 70: return k * 0.50
-    return k * 0.70
+    if conf < 40: return k * 0.35
+    if conf < 55: return k * 0.55
+    if conf < 70: return k * 0.75
+    return k * 1.00
 
 # ─── Confidence & Grading ─────────────────────────────────────────────────────
 
