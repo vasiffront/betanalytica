@@ -383,42 +383,32 @@ def football_today():
 
 @app.route('/football_stats')
 def football_stats():
-    home_id    = request.args.get('home_id', '')
-    away_id    = request.args.get('away_id', '')
-    home_form  = request.args.get('home_form', '')
-    away_form  = request.args.get('away_form', '')
+    home_id   = request.args.get('home_id', '')
+    away_id   = request.args.get('away_id', '')
+    home_form = request.args.get('home_form', '')
+    away_form = request.args.get('away_form', '')
     if not home_id or not away_id:
         return jsonify({'error': 'Missing team IDs'}), 400
-    try:
-        end   = date.today()
-        start = end - timedelta(days=14)
+
+    def get_team_season(team_id):
         r = _req.get(
-            f'{_ESPN}?dates={start.strftime("%Y%m%d")}-{end.strftime("%Y%m%d")}&limit=1000',
-            timeout=15
+            f'https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/{team_id}',
+            timeout=8
         )
         r.raise_for_status()
-        finished = [e for e in r.json().get('events', [])
-                    if e['competitions'][0].get('status', {}).get('type', {}).get('state') == 'post']
+        items = r.json().get('team', {}).get('record', {}).get('items', [])
+        total = next((i for i in items if i.get('type') == 'total'), None)
+        if not total:
+            return 0, 0, 5
+        stats = {s['name']: s['value'] for s in total.get('stats', [])}
+        gp       = int(stats.get('gamesPlayed', 5)) or 5
+        scored   = int(stats.get('pointsFor', 0))
+        conceded = int(stats.get('pointsAgainst', 0))
+        return scored, conceded, gp
 
-        def get_goals(tid, last_n=5):
-            rows = []
-            for ev in finished:
-                cs = ev['competitions'][0].get('competitors', [])
-                me    = next((c for c in cs if c.get('team', {}).get('id') == tid), None)
-                other = next((c for c in cs if c.get('team', {}).get('id') != tid), None)
-                if me and other:
-                    try:
-                        rows.append((int(float(str(me.get('score', 0)))),
-                                     int(float(str(other.get('score', 0))))))
-                    except Exception:
-                        pass
-            rows = rows[-last_n:]
-            if not rows:
-                return 0, 0, last_n
-            return sum(s for s, _ in rows), sum(c for _, c in rows), len(rows)
-
-        hs, hc, hg = get_goals(home_id)
-        as_, ac, ag = get_goals(away_id)
+    try:
+        hs, hc, hg = get_team_season(home_id)
+        as_, ac, ag = get_team_season(away_id)
         return jsonify({'hs': hs, 'hc': hc, 'as': as_, 'ac': ac,
                         'fh': _form_pts(home_form), 'fa': _form_pts(away_form),
                         'ng': max(hg, ag, 1)})
