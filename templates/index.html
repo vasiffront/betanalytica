@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BetAnalytica PRO</title>
+<!-- PWA -->
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#161b22">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BetAnalytica">
+<link rel="apple-touch-icon" href="/static/icon.svg">
+<!-- /PWA -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0d1117;
+  --bg-card:  #161b22;
+  --bg-card2: #1c2230;
+  --bg-in:    #0d1117;
+  --border:   rgba(255,255,255,.08);
+  --border2:  rgba(255,255,255,.14);
+  --text:     #e6edf3;
+  --muted:    #7d8590;
+  --blue:     #58a6ff;
+  --green:    #3fb950;
+  --yellow:   #d29922;
+  --red:      #f85149;
+  --radius:   12px;
+  --rsm:      7px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14px;min-height:100vh}
+
+/* ── Header ── */
+.hdr{background:rgba(22,27,34,.96);border-bottom:1px solid var(--border);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;padding:11px 20px}
+.hdr h1{font-size:18px;font-weight:700;background:linear-gradient(135deg,#58a6ff,#3fb950);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.stat-pill{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:20px;padding:3px 11px;font-size:11px;color:var(--muted);white-space:nowrap}
+.stat-pill span{color:var(--text);font-weight:700}
+.bal-pill{background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.25);border-radius:20px;padding:3px 13px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;transition:background .2s}
+.bal-pill:hover{background:rgba(63,185,80,.2)}
+
+/* ── Layout ── */
+.wrap{max-width:1220px;margin:0 auto;padding:20px 14px}
+
+/* ── Panels ── */
+.panel{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+.ptitle{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.ptitle i{color:var(--blue)}
+
+/* ── Inputs ── */
+.flabel{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:5px}
+.fc{background:var(--bg-in)!important;border:1px solid var(--border2)!important;border-radius:var(--rsm)!important;color:var(--text)!important;font-size:14px!important;padding:7px 11px!important;transition:border-color .15s,box-shadow .15s;width:100%}
+.fc:focus{border-color:var(--blue)!important;box-shadow:0 0 0 3px rgba(88,166,255,.12)!important;outline:none}
+.fc::placeholder{color:var(--muted)!important}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+
+/* ── Buttons ── */
+.btn-green{background:linear-gradient(135deg,#238636,#2ea043);border:none;border-radius:var(--rsm);color:#fff;font-weight:700;font-size:14px;padding:9px 18px;cursor:pointer;transition:opacity .2s,transform .1s;width:100%}
+.btn-green:hover{opacity:.85;transform:translateY(-1px)}
+.btn-green:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn-outline{background:transparent;border:1px solid var(--border2);border-radius:var(--rsm);color:var(--muted);font-size:13px;font-weight:600;padding:8px 14px;cursor:pointer;transition:all .2s}
+.btn-outline:hover{border-color:var(--blue);color:var(--blue)}
+.btn-red{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);border-radius:var(--rsm);color:var(--red);font-weight:600;font-size:13px;padding:8px 14px;cursor:pointer;transition:background .2s}
+.btn-red:hover{background:rgba(248,81,73,.2)}
+.btn-sm{padding:4px 10px;font-size:11px;font-weight:600;border-radius:4px;border:none;cursor:pointer;transition:all .15s}
+.btn-track{background:rgba(88,166,255,.12);color:var(--blue)}
+.btn-track:hover{background:rgba(88,166,255,.22)}
+.btn-won{background:rgba(63,185,80,.12);color:var(--green)}
+.btn-won:hover{background:rgba(63,185,80,.25)}
+.btn-lost{background:rgba(248,81,73,.12);color:var(--red)}
+.btn-lost:hover{background:rgba(248,81,73,.25)}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;gap:3px;background:var(--bg-card);border-radius:var(--radius);padding:4px;margin-bottom:16px}
+.tab-btn{flex:1;padding:8px;border:none;background:transparent;color:var(--muted);border-radius:var(--rsm);cursor:pointer;font-size:13px;font-weight:600;transition:all .15s}
+.tab-btn.active{background:var(--bg-card2);color:var(--text)}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+
+/* ── Balance Widget ── */
+.bw{border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;border:1px solid rgba(63,185,80,.22);background:linear-gradient(135deg,rgba(63,185,80,.07),rgba(88,166,255,.05));position:relative;overflow:hidden}
+.bw-glow{position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:radial-gradient(circle,rgba(63,185,80,.15),transparent 70%);pointer-events:none}
+.bw-main{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
+.bw-label{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:4px}
+.bw-amount{font-size:30px;font-weight:800;letter-spacing:-1px;line-height:1}
+.bw-start{font-size:12px;font-weight:600;color:var(--muted)}
+.bw-bar-wrap{margin-bottom:12px}
+.bw-bar-bg{height:6px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden}
+.bw-bar-fill{height:100%;border-radius:3px;transition:width .6s ease,background .3s}
+.bw-bottom{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.bw-delta{font-size:13px;font-weight:700}
+.bw-edit{display:flex;gap:6px;align-items:center}
+.bw-edit .fc{width:130px;padding:5px 10px!important;font-size:13px!important}
+
+/* ── Match Card ── */
+.mcard{background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;transition:transform .2s,box-shadow .2s;animation:fadeUp .3s ease}
+.mcard:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.mcard.ga{border-left:3px solid #2ea043}
+.mcard.gb{border-left:3px solid #1f6feb}
+.mcard.gc{border-left:3px solid #9e6a03}
+.mcard.gd{border-left:3px solid #6e2020}
+.mcard-head{padding:11px 14px 9px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.teams{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
+.vs{font-size:9px;font-weight:700;color:var(--muted);background:rgba(255,255,255,.06);border-radius:3px;padding:2px 4px}
+.mcard-meta{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.meta-tag{font-size:10px;color:var(--muted);background:rgba(255,255,255,.05);border-radius:4px;padding:2px 6px}
+.xg-row{padding:7px 14px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);display:flex;gap:14px;align-items:center}
+
+/* ── Bet Row ── */
+.bet-row{padding:9px 14px;border-bottom:1px solid var(--border);transition:background .15s}
+.bet-row:last-child{border-bottom:none}
+.bet-row:hover{background:rgba(255,255,255,.025)}
+.bet-row.top-bet{background:rgba(88,166,255,.05)}
+.bet-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.bet-name{display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px}
+.bet-right{display:flex;align-items:center;gap:7px}
+.odd-val{font-size:15px;font-weight:700;color:var(--blue)}
+.ev-tag{font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(63,185,80,.14);color:var(--green)}
+.stake-tag{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(188,140,255,.12);color:var(--purple)}
+.bar-wrap{display:flex;align-items:center;gap:7px;font-size:11px}
+.bar-bg{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#1f6feb,#58a6ff);transition:width .5s ease}
+.bar-fill.top{background:linear-gradient(90deg,#238636,#3fb950)}
+.bet-stats{display:flex;gap:10px;margin-top:4px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.bst span{color:var(--text);font-weight:600}
+
+/* ── Grade ── */
+.gr{font-size:10px;font-weight:800;border-radius:4px;padding:2px 6px;letter-spacing:.4px}
+.gr-A{background:rgba(46,160,67,.2);color:#3fb950;border:1px solid rgba(46,160,67,.4)}
+.gr-B{background:rgba(31,111,235,.2);color:#58a6ff;border:1px solid rgba(31,111,235,.4)}
+.gr-C{background:rgba(158,106,3,.2);color:#d29922;border:1px solid rgba(158,106,3,.4)}
+.gr-D{background:rgba(110,32,32,.2);color:#f85149;border:1px solid rgba(110,32,32,.4)}
+.star{color:#f0c040;font-size:11px}
+
+/* ── Express ── */
+.exp-card{background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--radius);padding:13px;margin-bottom:11px;animation:fadeUp .3s ease}
+.exp-card:first-child{border-color:rgba(63,185,80,.3);background:rgba(63,185,80,.04)}
+.exp-leg{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)}
+.exp-leg:last-child{border-bottom:none}
+.exp-totals{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px}
+.exp-stat label{display:block;font-size:10px;text-transform:uppercase;color:var(--muted)}
+.exp-stat strong{font-size:14px;font-weight:700}
+
+/* ── Tracker bets ── */
+.tbet{background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--rsm);padding:12px 14px;margin-bottom:8px;animation:fadeUp .25s ease}
+.tbet.won-bet{border-left:3px solid var(--green)}
+.tbet.lost-bet{border-left:3px solid var(--red)}
+.tbet.pend-bet{border-left:3px solid var(--yellow)}
+.tbet-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.tbet-match{font-weight:700;font-size:13px}
+.tbet-meta{font-size:11px;color:var(--muted);margin-bottom:7px;line-height:1.7}
+.tbet-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.result-badge{font-size:12px;font-weight:700;padding:3px 10px;border-radius:4px}
+.rb-win{background:rgba(63,185,80,.15);color:var(--green)}
+.rb-lose{background:rgba(248,81,73,.15);color:var(--red)}
+
+/* ── Tracker stats row ── */
+.tstats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.tsc{background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--rsm);padding:10px;text-align:center}
+.tsc label{display:block;font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.tsc .tv{font-size:17px;font-weight:700}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:22px;right:22px;z-index:9999;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--rsm);padding:11px 17px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.5);transform:translateY(80px);opacity:0;transition:all .25s ease;pointer-events:none;max-width:300px}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.ok{border-left:3px solid var(--green)}
+#toast.err{border-left:3px solid var(--red)}
+
+/* ── Misc ── */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
+.empty{text-align:center;padding:38px 16px;color:var(--muted);font-size:13px}
+.empty i{font-size:30px;display:block;margin-bottom:9px;opacity:.28}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:768px){.g3{grid-template-columns:repeat(2,1fr)}.g4{grid-template-columns:repeat(2,1fr)}.wrap{padding:12px 8px}.tstats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div style="max-width:1220px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <h1><i class="fa-solid fa-chart-line" style="font-size:15px;-webkit-text-fill-color:#58a6ff"></i> BetAnalytica <span style="font-weight:400;font-size:13px;-webkit-text-fill-color:#7d8590">PRO</span></h1>
+    <div style="display:flex;gap:7px;flex-wrap:wrap" id="hdr-stats">
+      <div class="stat-pill">Матчей: <span id="hc">0</span></div>
+      <div class="stat-pill">Avg EV: <span id="hev">—</span></div>
+      <div class="stat-pill">Grade A: <span id="ha">0</span></div>
+      <div class="bal-pill" onclick="showTab('tracker')" title="Перейти к трекеру" id="hdr-bal">
+        <i class="fa-solid fa-wallet" style="font-size:10px;margin-right:4px;color:var(--green)"></i><span id="hbal-txt">Нет баланса</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div id="toast"></div>
+
+<div class="wrap">
+<div class="row g-4">
+
+<!-- ══ LEFT: Form ═══════════════════════════════════════════════════════ -->
+<div class="col-lg-5">
+  <div class="panel">
+    <div class="ptitle"><i class="fa-solid fa-plus-circle"></i> Добавить матч</div>
+
+    <div class="g2 mb-3">
+      <div><label class="flabel">Хозяева</label><input id="home_team" class="fc" placeholder="Команда A"></div>
+      <div><label class="flabel">Гости</label><input id="away_team" class="fc" placeholder="Команда B"></div>
+    </div>
+
+    <div class="ptitle"><i class="fa-solid fa-futbol"></i> Голы (за N матчей)</div>
+    <div class="row g-2 mb-2">
+      <div class="col-3"><label class="flabel">Хоз. заб.</label><input id="hs" class="fc" type="number" min="0" placeholder="8"></div>
+      <div class="col-3"><label class="flabel">Хоз. проп.</label><input id="hc_i" class="fc" type="number" min="0" placeholder="4"></div>
+      <div class="col-3"><label class="flabel">Гос. заб.</label><input id="as_i" class="fc" type="number" min="0" placeholder="5"></div>
+      <div class="col-3"><label class="flabel">Гос. проп.</label><input id="ac" class="fc" type="number" min="0" placeholder="6"></div>
+    </div>
+
+    <div class="row g-2 mb-3">
+      <div class="col-4"><label class="flabel">Форма хоз.</label><input id="fh" class="fc" type="number" min="0" max="15" placeholder="9"></div>
+      <div class="col-4"><label class="flabel">Форма гос.</label><input id="fa" class="fc" type="number" min="0" max="15" placeholder="7"></div>
+      <div class="col-4"><label class="flabel" title="Кол-во матчей в статистике">Матчей <i class="fa-solid fa-circle-question" style="font-size:9px;color:var(--blue)"></i></label><input id="ng" class="fc" type="number" min="1" max="20" placeholder="5" value="5"></div>
+    </div>
+
+    <div class="ptitle"><i class="fa-solid fa-tags"></i> Коэффициенты</div>
+    <label class="flabel" style="margin-bottom:4px">Исход (1X2)</label>
+    <div class="g3 mb-2">
+      <input id="oh"  class="fc" type="number" step="0.01" placeholder="П1">
+      <input id="ox"  class="fc" type="number" step="0.01" placeholder="X">
+      <input id="oa"  class="fc" type="number" step="0.01" placeholder="П2">
+    </div>
+    <label class="flabel" style="margin-bottom:4px">Двойной шанс</label>
+    <div class="g2 mb-2">
+      <input id="o1x" class="fc" type="number" step="0.01" placeholder="1X">
+      <input id="ox2" class="fc" type="number" step="0.01" placeholder="X2">
+    </div>
+    <label class="flabel" style="margin-bottom:4px">Тотал голов</label>
+    <div class="g4 mb-2">
+      <input id="otb"   class="fc" type="number" step="0.01" placeholder="ТБ2.5">
+      <input id="otm"   class="fc" type="number" step="0.01" placeholder="ТМ2.5">
+      <input id="otb35" class="fc" type="number" step="0.01" placeholder="ТБ3.5">
+      <input id="otm35" class="fc" type="number" step="0.01" placeholder="ТМ3.5">
+    </div>
+    <label class="flabel" style="margin-bottom:4px">Обе забьют</label>
+    <div class="g2 mb-3">
+      <input id="ob_yes" class="fc" type="number" step="0.01" placeholder="ОЗ Да">
+      <input id="ob_no"  class="fc" type="number" step="0.01" placeholder="ОЗ Нет">
+    </div>
+
+    <div class="g3" style="gap:7px">
+      <div style="grid-column:span 2">
+        <button class="btn-green" id="btn-add" onclick="addMatch()">
+          <i class="fa-solid fa-magnifying-glass-chart"></i> Анализировать
+        </button>
+      </div>
+      <button class="btn-outline" onclick="clearFields()"><i class="fa-solid fa-eraser"></i> Поля</button>
+    </div>
+    <div class="g2 mt-2" style="gap:7px">
+      <button class="btn-outline" onclick="copyBestPicks()"><i class="fa-solid fa-copy"></i> Копировать</button>
+      <button class="btn-red" onclick="clearAll()"><i class="fa-solid fa-trash"></i> Сбросить всё</button>
+    </div>
+  </div>
+
+  <!-- Hint -->
+  <div class="panel" style="padding:13px">
+    <div style="font-size:11px;color:var(--muted);line-height:1.75">
+      <b style="color:var(--text)">Форма</b> — очки за N матчей (П=3, Н=1, П=0), макс. N×3<br>
+      <b style="color:var(--text)">Матчей</b> — кол-во матчей в статистике (по умолч. 5)<br><br>
+      <b style="color:var(--text)">Грейды:</b>
+      <span class="gr gr-A ms-1">A</span> отличная
+      <span class="gr gr-B ms-1">B</span> хорошая
+      <span class="gr gr-C ms-1">C</span> умеренная
+      <span class="gr gr-D ms-1">D</span> слабая<br><br>
+      <b style="color:var(--text)">VR</b> — вероятность модели / вероятность рынка. Больше 1.0 = найдено преимущество<br>
+      <b style="color:var(--text)">Conf</b> снижается при высоких кэфах: ×4 → −24 пт, ×6 → −39 пт
+    </div>
+  </div>
+</div>
+
+<!-- ══ RIGHT: Results ═══════════════════════════════════════════════════ -->
+<div class="col-lg-7">
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab('matches')" id="tb-matches">Матчи <span id="tb-mc"></span></button>
+    <button class="tab-btn" onclick="showTab('express')" id="tb-express">Экспрессы</button>
+    <button class="tab-btn" onclick="showTab('tracker')" id="tb-tracker">Трекер <span id="tb-tc"></span></button>
+  </div>
+
+  <!-- ── Матчи ── -->
+  <div class="tab-pane active" id="tab-matches">
+    <div id="saved-matches">
+      <div class="empty"><i class="fa-solid fa-inbox"></i>Добавьте матч для анализа</div>
+    </div>
+  </div>
+
+  <!-- ── Экспрессы ── -->
+  <div class="tab-pane" id="tab-express">
+    <div id="express-section">
+      <div class="empty"><i class="fa-solid fa-layer-group"></i>Экспрессы появятся после 2+ матчей</div>
+    </div>
+  </div>
+
+  <!-- ── Трекер ── -->
+  <div class="tab-pane" id="tab-tracker">
+
+    <!-- Balance Widget -->
+    <div class="bw" id="bw">
+      <div class="bw-glow"></div>
+      <div class="bw-main">
+        <div>
+          <div class="bw-label">Текущий баланс</div>
+          <div class="bw-amount" id="bw-amount" style="color:var(--green)">—</div>
+        </div>
+        <div style="text-align:right">
+          <div class="bw-label">Начальный</div>
+          <div class="bw-start" id="bw-start">не задан</div>
+          <div style="font-size:11px;margin-top:3px" id="bw-sessions">Сессий: <b id="bw-sess-cnt">0</b></div>
+        </div>
+      </div>
+      <div class="bw-bar-wrap">
+        <div class="bw-bar-bg"><div class="bw-bar-fill" id="bw-bar" style="width:50%"></div></div>
+      </div>
+      <div class="bw-bottom">
+        <div class="bw-delta" id="bw-delta">—</div>
+        <div class="bw-edit">
+          <input id="bw-input" class="fc" type="number" min="0" placeholder="Введите баланс ₽" onkeydown="if(event.key==='Enter')applyBalance()">
+          <button class="btn-sm btn-track" onclick="applyBalance()"><i class="fa-solid fa-check"></i> Установить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="tstats">
+      <div class="tsc"><label>Сыграно</label><div class="tv" id="ts-played">0</div></div>
+      <div class="tsc"><label>Win %</label><div class="tv" id="ts-wr" style="color:var(--green)">—</div></div>
+      <div class="tsc"><label>ROI</label><div class="tv" id="ts-roi">—</div></div>
+      <div class="tsc"><label>Прибыль</label><div class="tv" id="ts-profit">—</div></div>
+    </div>
+
+    <div id="tracker-list">
+      <div class="empty"><i class="fa-solid fa-bookmark"></i>Нажмите <i class="fa-solid fa-bookmark" style="color:var(--blue)"></i> на ставке чтобы добавить в трекер</div>
+    </div>
+  </div>
+
+</div>
+</div>
+</div>
+
+<script>
+// ══ State ═══════════════════════════════════════════════════════════════════
+const $  = id => document.getElementById(id);
+let matches        = [];
+let tracker        = [];
+let currentBalance = 0;
+let startBalance   = 0;
+
+const LS_M  = 'ba_matches';
+const LS_T  = 'ba_tracker';
+const LS_NG = 'ba_ng';
+const LS_CUR = 'ba_balance_cur';
+const LS_START = 'ba_balance_start';
+
+// ══ LS helpers ═══════════════════════════════════════════════════════════════
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+const lsSet = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+function saveState() {
+  lsSet(LS_M,     matches);
+  lsSet(LS_T,     tracker);
+  lsSet(LS_NG,    $('ng').value);
+  lsSet(LS_CUR,   currentBalance);
+  lsSet(LS_START, startBalance);
+}
+
+// ══ Toast ════════════════════════════════════════════════════════════════════
+function toast(msg, type='ok') {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = ''; }, 3200);
+}
+
+// ══ Format ═══════════════════════════════════════════════════════════════════
+function fmt(n) {
+  return n.toLocaleString('ru-RU', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+}
+
+// ══ Stake calculation ═════════════════════════════════════════════════════════
+// Returns the stake in ₽ based on currentBalance and kelly%
+function calcStake(kelly) {
+  if (!currentBalance || currentBalance <= 0 || kelly <= 0) return 0;
+  return Math.max(Math.round(currentBalance * kelly / 100), 1);
+}
+
+function stakeTag(kelly) {
+  const s = calcStake(kelly);
+  if (!s) return '';
+  return `<span class="stake-tag">${fmt(s)} ₽</span>`;
+}
+
+// ══ Tabs ═════════════════════════════════════════════════════════════════════
+function showTab(name) {
+  ['matches','express','tracker'].forEach(t => {
+    $(`tab-${t}`).classList.toggle('active', t === name);
+    $(`tb-${t}`).classList.toggle('active', t === name);
+  });
+  if (name === 'express') fetchExpress();
+}
+
+// ══ Header ════════════════════════════════════════════════════════════════════
+function updateHeader() {
+  $('hc').textContent = matches.length;
+  const evVals = matches.filter(m => m.best).map(m => m.best.ev);
+  $('hev').textContent = evVals.length
+    ? `+${(evVals.reduce((a,b) => a+b, 0) / evVals.length).toFixed(1)}%`
+    : '—';
+  $('ha').textContent = matches.filter(m => m.best && m.best.grade === 'A').length;
+  const pending = tracker.filter(t => t.result === null).length;
+  $('tb-mc').textContent = matches.length ? `(${matches.length})` : '';
+  $('tb-tc').textContent = tracker.length ? `(${tracker.length})` : '';
+  // Balance pill
+  if (currentBalance > 0) {
+    const delta = currentBalance - startBalance;
+    const sign  = delta >= 0 ? '+' : '';
+    $('hbal-txt').textContent = `${fmt(currentBalance)} ₽  ${sign}${fmt(delta)}`;
+    $('hdr-bal').style.color = delta >= 0 ? 'var(--green)' : 'var(--red)';
+  } else {
+    $('hbal-txt').textContent = 'Задать баланс';
+  }
+}
+
+// ══ Balance widget ════════════════════════════════════════════════════════════
+function renderBalanceWidget() {
+  if (!startBalance) {
+    $('bw-amount').textContent = '—';
+    $('bw-amount').style.color = 'var(--muted)';
+    $('bw-start').textContent  = 'не задан';
+    $('bw-delta').textContent  = 'Введите начальный баланс ниже';
+    $('bw-delta').style.color  = 'var(--muted)';
+    $('bw-bar').style.width    = '0%';
+    $('bw-bar').style.background = 'var(--muted)';
+    return;
+  }
+
+  const delta   = currentBalance - startBalance;
+  const deltaPct = startBalance ? (delta / startBalance * 100).toFixed(1) : 0;
+  const isPos   = delta >= 0;
+  const sign    = isPos ? '+' : '';
+
+  $('bw-amount').textContent = `${fmt(currentBalance)} ₽`;
+  $('bw-amount').style.color = currentBalance >= startBalance ? 'var(--green)' : 'var(--red)';
+  $('bw-start').textContent  = `${fmt(startBalance)} ₽`;
+  $('bw-delta').textContent  = `${sign}${fmt(delta)} ₽ (${sign}${deltaPct}%)`;
+  $('bw-delta').style.color  = isPos ? 'var(--green)' : 'var(--red)';
+
+  // Bar: 50% = breakeven, grows or shrinks
+  const barPct = Math.max(Math.min(50 + (delta / startBalance) * 50, 100), 2);
+  $('bw-bar').style.width      = barPct + '%';
+  $('bw-bar').style.background = isPos
+    ? 'linear-gradient(90deg,#238636,#3fb950)'
+    : 'linear-gradient(90deg,#6e2020,#f85149)';
+
+  // Sessions count = times balance was set
+  $('bw-sess-cnt').textContent = lsGet('ba_sessions') || 1;
+}
+
+function applyBalance() {
+  const val = parseFloat($('bw-input').value);
+  if (!val || val <= 0) { toast('Введите корректный баланс', 'err'); return; }
+
+  if (!startBalance) {
+    // First time — set both current and start
+    startBalance   = val;
+    currentBalance = val;
+    lsSet('ba_sessions', 1);
+    toast(`Баланс установлен: ${fmt(val)} ₽`);
+  } else {
+    // Re-setting (user topped up or correcting)
+    if (!confirm(`Обновить баланс до ${fmt(val)} ₽?\n(Начальный баланс сохранится: ${fmt(startBalance)} ₽)`)) return;
+    currentBalance = val;
+    const sess = (lsGet('ba_sessions') || 0) + 1;
+    lsSet('ba_sessions', sess);
+    toast(`Баланс обновлён: ${fmt(val)} ₽`);
+  }
+
+  $('bw-input').value = '';
+  saveState();
+  renderBalanceWidget();
+  updateHeader();
+  renderTracker(); // refresh stake amounts
+  renderMatches(); // refresh stake amounts on bet rows
+}
+
+// ══ Grade helper ═════════════════════════════════════════════════════════════
+const grHtml = g => `<span class="gr gr-${g}">${g}</span>`;
+
+// ══ Match card ════════════════════════════════════════════════════════════════
+function matchCardHtml(m) {
+  const bg   = m.best ? m.best.grade : 'D';
+  const xMax = Math.max(m.lh, m.la, 1.5);
+  const bw   = v => Math.round(v / xMax * 68);
+
+  let rows = '';
+  if (!m.top3 || !m.top3.length) {
+    rows = `<div class="bet-row" style="color:var(--muted);font-size:12px;padding:12px 14px">Нет ставок с положительным EV</div>`;
+  } else {
+    m.top3.forEach(([name, b], i) => {
+      const isTop = i === 0;
+      const vrc   = b.vr >= 1.05 ? 'var(--green)' : b.vr >= 1.0 ? 'var(--muted)' : 'var(--red)';
+      const stk   = stakeTag(b.kelly);
+      rows += `
+      <div class="bet-row ${isTop ? 'top-bet' : ''}">
+        <div class="bet-top">
+          <div class="bet-name">
+            ${isTop ? '<i class="fa-solid fa-star star"></i>' : ''}
+            ${grHtml(b.grade)}
+            <span style="font-size:14px">${name}</span>
+          </div>
+          <div class="bet-right">
+            <span class="odd-val">${b.odd}</span>
+            <span class="ev-tag">+${b.ev}%</span>
+            ${stk}
+            <button class="btn-sm btn-track" onclick='trackBet(${JSON.stringify({mid:m.id,label:m.home+" — "+m.away,name,odd:b.odd,prob:b.prob,kelly:b.kelly,grade:b.grade})})' title="Записать ставку в трекер">
+              <i class="fa-solid fa-bookmark"></i>
+            </button>
+          </div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-bg"><div class="bar-fill ${isTop?'top':''}" style="width:${Math.min(b.prob,100)}%"></div></div>
+          <span style="color:var(--text);font-weight:600">${b.prob}%</span>
+        </div>
+        <div class="bet-stats">
+          <div class="bst"><i class="fa-solid fa-brain" style="font-size:9px"></i> Мод: <span>${b.model_prob}%</span></div>
+          <div class="bst"><i class="fa-solid fa-store" style="font-size:9px"></i> Мрк: <span>${b.market_prob}%</span></div>
+          <div class="bst">VR: <span style="color:${vrc}">${b.vr}×</span></div>
+          <div class="bst">Kelly: <span>${b.kelly}%</span></div>
+          <div class="bst">Conf: <span>${b.conf}</span></div>
+        </div>
+      </div>`;
+    });
+  }
+
+  return `
+  <div class="mcard g${bg}">
+    <div class="mcard-head">
+      <div class="teams"><span>${m.home}</span><span class="vs">VS</span><span>${m.away}</span></div>
+      <div class="mcard-meta">
+        ${bg !== 'D' ? grHtml(bg) : ''}
+        <span class="meta-tag">Маржа ${m.vig}%</span>
+      </div>
+    </div>
+    <div class="xg-row">
+      <span style="color:var(--blue);font-weight:700">${m.lh} xG</span>
+      <div style="height:4px;width:${bw(m.lh)}px;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:2px"></div>
+      <span style="color:var(--muted);font-size:10px">|</span>
+      <div style="height:4px;width:${bw(m.la)}px;background:linear-gradient(90deg,#f85149,#d29922);border-radius:2px"></div>
+      <span style="color:var(--red);font-weight:700">${m.la} xG</span>
+      <span style="margin-left:auto;font-size:10px">≈ ${(m.lh+m.la).toFixed(2)} гола</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+function renderMatches() {
+  $('saved-matches').innerHTML = matches.length
+    ? matches.slice().reverse().map(matchCardHtml).join('')
+    : `<div class="empty"><i class="fa-solid fa-inbox"></i>Добавьте матч для анализа</div>`;
+}
+
+// ══ Express ═══════════════════════════════════════════════════════════════════
+let _lastExpress = []; // кэш последних экспрессов для trackExpress(i)
+
+// Возвращает Set ID матчей, занятых трекером:
+//   - матчи в любом записанном экспрессе (pending или resolved)
+//   - матчи с уже зафиксированным одиночным результатом (W или L)
+function getUsedMatchIds() {
+  const used = new Set();
+  tracker.forEach(t => {
+    if (t.type === 'express' && t.match_ids) t.match_ids.forEach(id => used.add(id));
+    if (!t.type && t.result !== null && t.mid)  used.add(t.mid);
+  });
+  return used;
+}
+
+function renderExpress(data) {
+  const el = $('express-section');
+  if (!data || data.error) {
+    el.innerHTML = `<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i>${data ? data.error : 'Нет доступных матчей для экспресса'}</div>`;
+    return;
+  }
+  _lastExpress = data.alternatives || [];
+  el.innerHTML = _lastExpress.map((alt, i) => {
+    const legs = alt.combo.map(m =>
+      `<div class="exp-leg">
+        <span style="font-weight:600">${m.home} — ${m.away}</span>
+        <span style="color:var(--blue)">${m.best.name} <span style="color:var(--muted);font-size:10px">@ ${m.best.odd}</span></span>
+      </div>`).join('');
+    const evc = alt.ev >= 8 ? 'var(--green)' : alt.ev >= 3 ? 'var(--yellow)' : 'var(--red)';
+    const stk = stakeTag(alt.kelly);
+    return `
+    <div class="exp-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <b>${i===0?'<i class="fa-solid fa-crown" style="color:#f0c040;margin-right:5px"></i>':''}Экспресс ${i+1} ${grHtml(alt.grade)}</b>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;color:var(--muted)">${alt.combo.length} события</span>
+          <button class="btn-sm btn-track" onclick="trackExpress(${i})" title="Записать экспресс в трекер">
+            <i class="fa-solid fa-bookmark"></i> Записать
+          </button>
+        </div>
+      </div>
+      ${legs}
+      <div class="exp-totals">
+        <div class="exp-stat"><label>Кэф.</label><strong style="color:var(--blue)">${alt.total_odd}</strong></div>
+        <div class="exp-stat"><label>Вероятность</label><strong>${alt.total_prob}%</strong></div>
+        <div class="exp-stat"><label>EV</label><strong style="color:${evc}">${alt.ev>0?'+':''}${alt.ev}%</strong></div>
+        <div class="exp-stat"><label>Kelly</label><strong>${alt.kelly}% ${stk}</strong></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function fetchExpress() {
+  // Исключаем матчи, уже занятые трекером
+  const usedIds = getUsedMatchIds();
+  const freeIds = matches.filter(m => !usedIds.has(m.id)).map(m => m.id);
+
+  if (freeIds.length < 2) {
+    const msg = usedIds.size > 0
+      ? 'Все или большинство матчей уже в трекере — добавьте новые'
+      : 'Экспрессы появятся после 2+ матчей';
+    $('express-section').innerHTML = `<div class="empty"><i class="fa-solid fa-layer-group"></i>${msg}</div>`;
+    return;
+  }
+  fetch('/build_express', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({match_ids: freeIds})
+  }).then(r => r.json()).then(renderExpress).catch(() => {});
+}
+
+function trackExpress(idx) {
+  if (!currentBalance || currentBalance <= 0) {
+    toast('Сначала установите баланс в Трекере', 'err');
+    showTab('tracker'); $('bw-input').focus(); return;
+  }
+  const alt = _lastExpress[idx];
+  if (!alt) return;
+
+  const stake = calcStake(alt.kelly);
+  const entry = {
+    id:         Date.now() + Math.random(),
+    type:       'express',
+    match_ids:  alt.combo.map(m => m.id),
+    legs:       alt.combo.map(m => ({label: `${m.home} — ${m.away}`, name: m.best.name, odd: m.best.odd})),
+    grade:      alt.grade,
+    odd:        alt.total_odd,
+    prob:       alt.total_prob,
+    kelly:      alt.kelly,
+    ev:         alt.ev,
+    stake,
+    bal_before: currentBalance,
+    result:     null,
+    at:         new Date().toLocaleString('ru')
+  };
+  tracker.unshift(entry);
+  saveState();
+  renderTracker();
+  updateHeader();
+  showTab('tracker');
+  fetchExpress(); // обновить список — убрать использованные матчи
+  toast(`Экспресс записан (${alt.combo.length} события) | Ставка: ${fmt(stake)} ₽`);
+}
+
+// ══ Tracker ═══════════════════════════════════════════════════════════════════
+function trackBet(info) {
+  if (!currentBalance || currentBalance <= 0) {
+    toast('Сначала установите баланс в Трекере', 'err');
+    showTab('tracker');
+    $('bw-input').focus();
+    return;
+  }
+
+  const stake = calcStake(info.kelly);
+  const entry = {
+    id:         Date.now() + Math.random(),
+    mid:        info.mid,
+    label:      info.label,
+    name:       info.name,
+    odd:        info.odd,
+    prob:       info.prob,
+    kelly:      info.kelly,
+    grade:      info.grade,
+    stake:      stake,
+    bal_before: currentBalance,   // баланс ДО ставки
+    result:     null,
+    at:         new Date().toLocaleString('ru')
+  };
+  tracker.unshift(entry);
+  saveState();
+  renderTracker();
+  updateHeader();
+  showTab('tracker');
+  toast(`Записана: ${info.label} — ${info.name} | Ставка: ${fmt(stake)} ₽`);
+}
+
+function setResult(id, result) {
+  const t = tracker.find(x => x.id === id);
+  if (!t) return;
+
+  // Откатить предыдущий результат если был
+  if (t.result === 'W') currentBalance -= Math.round(t.stake * (t.odd - 1));
+  if (t.result === 'L') currentBalance += t.stake;
+
+  // Применить новый результат
+  t.result = result;
+  if (result === 'W') currentBalance += Math.round(t.stake * (t.odd - 1));
+  if (result === 'L') currentBalance -= t.stake;
+
+  // Баланс не уходит ниже 0
+  currentBalance = Math.max(currentBalance, 0);
+
+  saveState();
+  renderTracker();
+  renderMatches();
+  updateHeader();
+  // Если вкладка экспрессов открыта — обновить (могут появиться освободившиеся матчи)
+  if ($('tab-express').classList.contains('active')) fetchExpress();
+
+  if (result === 'W') {
+    const profit = Math.round(t.stake * (t.odd - 1));
+    toast(`Выиграл +${fmt(profit)} ₽ → Баланс: ${fmt(currentBalance)} ₽`);
+  } else if (result === 'L') {
+    toast(`Проиграл −${fmt(t.stake)} ₽ → Баланс: ${fmt(currentBalance)} ₽`, 'err');
+  } else {
+    toast('Результат сброшен');
+    // При сбросе — экспресс с этими матчами мог снова стать доступным
+    if ($('tab-express').classList.contains('active')) fetchExpress();
+  }
+}
+
+function deleteTracked(id) {
+  const t = tracker.find(x => x.id === id);
+  if (!t) return;
+  // Откатить баланс если результат был зафиксирован
+  if (t.result === 'W') currentBalance -= Math.round(t.stake * (t.odd - 1));
+  if (t.result === 'L') currentBalance += t.stake;
+  currentBalance = Math.max(currentBalance, 0);
+  tracker = tracker.filter(x => x.id !== id);
+  saveState();
+  renderTracker();
+  renderMatches();
+  updateHeader();
+  if ($('tab-express').classList.contains('active')) fetchExpress();
+}
+
+function renderTracker() {
+  renderBalanceWidget();
+
+  // Stats
+  const done  = tracker.filter(t => t.result !== null);
+  const won   = tracker.filter(t => t.result === 'W');
+  let totalStake = 0, totalReturn = 0;
+  done.forEach(t => {
+    totalStake  += t.stake;
+    if (t.result === 'W') totalReturn += t.stake * t.odd;
+  });
+  const wr     = done.length ? (won.length / done.length * 100).toFixed(0) : null;
+  const roi    = totalStake  ? ((totalReturn - totalStake) / totalStake * 100).toFixed(1) : null;
+  const profit = totalReturn - totalStake;
+
+  $('ts-played').textContent = done.length;
+  $('ts-wr').textContent     = wr  !== null ? wr + '%'  : '—';
+  $('ts-wr').style.color     = wr >= 55 ? 'var(--green)' : wr >= 45 ? 'var(--yellow)' : 'var(--red)';
+  $('ts-roi').textContent    = roi !== null ? (roi > 0 ? '+' : '') + roi + '%' : '—';
+  $('ts-roi').style.color    = roi > 0 ? 'var(--green)' : roi < 0 ? 'var(--red)' : 'var(--muted)';
+  $('ts-profit').textContent = totalStake ? (profit >= 0 ? '+' : '') + fmt(profit) + ' ₽' : '—';
+  $('ts-profit').style.color = profit >= 0 ? 'var(--green)' : 'var(--red)';
+
+  if (!tracker.length) {
+    $('tracker-list').innerHTML = `<div class="empty"><i class="fa-solid fa-bookmark"></i>Нажмите <i class="fa-solid fa-bookmark" style="color:var(--blue)"></i> на ставке чтобы добавить в трекер</div>`;
+    return;
+  }
+
+  $('tracker-list').innerHTML = tracker.map(t => {
+    const cls = t.result === 'W' ? 'won-bet' : t.result === 'L' ? 'lost-bet' : 'pend-bet';
+
+    // ── Общие части ──
+    let resultBadge, profitLine = '';
+    if (t.result === 'W') {
+      const pr = Math.round(t.stake * (t.odd - 1));
+      resultBadge = `<span class="result-badge rb-win"><i class="fa-solid fa-check"></i> ВЫИГРАЛ</span>`;
+      profitLine  = `<span style="color:var(--green);font-weight:700">+${fmt(pr)} ₽</span>`;
+    } else if (t.result === 'L') {
+      resultBadge = `<span class="result-badge rb-lose"><i class="fa-solid fa-xmark"></i> ПРОИГРАЛ</span>`;
+      profitLine  = `<span style="color:var(--red);font-weight:700">−${fmt(t.stake)} ₽</span>`;
+    } else {
+      resultBadge = `<span style="color:var(--yellow);font-size:12px"><i class="fa-solid fa-clock"></i> Ожидание</span>`;
+    }
+    const balAfter = t.result === 'W'
+      ? t.bal_before + Math.round(t.stake * (t.odd - 1))
+      : t.result === 'L' ? t.bal_before - t.stake : null;
+
+    const actBtns = `
+      ${t.result === null ? `
+        <button class="btn-sm btn-won"  onclick="setResult(${t.id},'W')"><i class="fa-solid fa-check"></i> Выиграл</button>
+        <button class="btn-sm btn-lost" onclick="setResult(${t.id},'L')"><i class="fa-solid fa-xmark"></i> Проиграл</button>
+      ` : `
+        <button class="btn-sm btn-outline" style="font-size:10px" onclick="setResult(${t.id},null)">Сбросить</button>
+      `}
+      <button class="btn-sm" style="background:rgba(255,255,255,.05);color:var(--muted)" onclick="deleteTracked(${t.id})" title="Удалить">
+        <i class="fa-solid fa-trash"></i>
+      </button>`;
+
+    // ── Экспресс ──
+    if (t.type === 'express') {
+      const legsHtml = t.legs.map(l =>
+        `<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted)">${l.label}</span>
+          <span style="color:var(--blue)">${l.name} @ ${l.odd}</span>
+        </div>`).join('');
+      return `
+      <div class="tbet ${cls}">
+        <div class="tbet-top">
+          <div class="tbet-match">
+            <i class="fa-solid fa-layer-group" style="color:var(--purple);margin-right:4px"></i>
+            ${grHtml(t.grade)} Экспресс · ${t.legs.length} события
+          </div>
+          ${resultBadge}
+        </div>
+        <div style="margin:6px 0 8px">${legsHtml}</div>
+        <div class="tbet-meta">
+          Итог. кэф: <b style="color:var(--blue)">${t.odd}</b>
+          &nbsp;·&nbsp; Вер: ${t.prob}%
+          &nbsp;·&nbsp; EV: <b style="color:var(--green)">${t.ev > 0 ? '+' : ''}${t.ev}%</b>
+          &nbsp;·&nbsp; Ставка: <b style="color:var(--purple)">${fmt(t.stake)} ₽</b>
+          ${profitLine ? '&nbsp;·&nbsp;' + profitLine : ''}
+          ${balAfter !== null ? `&nbsp;·&nbsp; Баланс: <b style="color:var(--text)">${fmt(balAfter)} ₽</b>` : ''}
+          <br><span style="font-size:10px">${t.at}</span>
+        </div>
+        <div class="tbet-actions">${actBtns}</div>
+      </div>`;
+    }
+
+    // ── Одиночная ставка ──
+    return `
+    <div class="tbet ${cls}">
+      <div class="tbet-top">
+        <div class="tbet-match">${grHtml(t.grade)} ${t.label}</div>
+        ${resultBadge}
+      </div>
+      <div class="tbet-meta">
+        <b style="color:var(--text)">${t.name}</b> @ <b style="color:var(--blue)">${t.odd}</b>
+        &nbsp;·&nbsp; Вер: ${t.prob}%
+        &nbsp;·&nbsp; Kelly: ${t.kelly}%
+        &nbsp;·&nbsp; Ставка: <b style="color:var(--purple)">${fmt(t.stake)} ₽</b>
+        ${profitLine ? '&nbsp;·&nbsp;' + profitLine : ''}
+        ${balAfter !== null ? `&nbsp;·&nbsp; Баланс: <b style="color:var(--text)">${fmt(balAfter)} ₽</b>` : ''}
+        <br><span style="font-size:10px">${t.at}</span>
+      </div>
+      <div class="tbet-actions">${actBtns}</div>
+    </div>`;
+  }).join('');
+}
+
+// ══ Add match ═════════════════════════════════════════════════════════════════
+function addMatch() {
+  const req = [['home_team','Хозяева'],['away_team','Гости'],['hs','Голы хоз.'],['hc_i','Проп. хоз.'],
+               ['as_i','Голы гос.'],['ac','Проп. гос.'],['oh','П1'],['ox','X'],['oa','П2']];
+  for (const [id, label] of req) {
+    if (!$(id).value.trim()) { toast(`Заполните: ${label}`, 'err'); $(id).focus(); return; }
+  }
+  const btn = $('btn-add');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Анализ...';
+
+  const payload = {
+    home_team: $('home_team').value.trim(), away_team: $('away_team').value.trim(),
+    hs: $('hs').value, hc: $('hc_i').value, as: $('as_i').value, ac: $('ac').value,
+    fh: $('fh').value || 7.5, fa: $('fa').value || 7.5, ng: $('ng').value || 5,
+    odds: {
+      oh: $('oh').value, ox: $('ox').value, oa: $('oa').value,
+      o1x: $('o1x').value, ox2: $('ox2').value,
+      otb: $('otb').value, otm: $('otm').value,
+      otb35: $('otb35').value, otm35: $('otm35').value,
+      ob_yes: $('ob_yes').value, ob_no: $('ob_no').value
+    }
+  };
+
+  fetch('/calculate', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { toast('Ошибка: ' + data.error, 'err'); return; }
+    matches = data.saved_matches;
+    saveState();
+    renderMatches();
+    updateHeader();
+    toast(`${payload.home_team} — ${payload.away_team} добавлен`);
+    $('home_team').value = ''; $('away_team').value = '';
+    if (matches.length >= 2) fetchExpress();
+  })
+  .catch(() => toast('Ошибка сети', 'err'))
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-chart"></i> Анализировать';
+  });
+}
+
+// ══ Util buttons ══════════════════════════════════════════════════════════════
+function clearFields() {
+  ['home_team','away_team','hs','hc_i','as_i','ac','fh','fa',
+   'oh','ox','oa','o1x','ox2','otb','otm','otb35','otm35','ob_yes','ob_no'].forEach(id => $(id).value = '');
+  $('ng').value = '5';
+  $('home_team').focus();
+  toast('Поля формы очищены');
+}
+
+function clearAll() {
+  if (!matches.length && !tracker.length) { toast('Ничего нет'); return; }
+  if (!confirm('Удалить все матчи и трекер ставок?\n(Баланс сохранится)')) return;
+  fetch('/clear', {method:'POST'}).then(() => {
+    matches = []; tracker = [];
+    saveState();
+    renderMatches(); renderTracker(); updateHeader();
+    $('express-section').innerHTML = `<div class="empty"><i class="fa-solid fa-layer-group"></i>Экспрессы появятся после 2+ матчей</div>`;
+    toast('Матчи и трекер удалены', 'err');
+  });
+}
+
+function copyBestPicks() {
+  if (!matches.length) { toast('Нет матчей', 'err'); return; }
+  let txt = '🎯 BetAnalytica — Лучшие ставки\n\n';
+  matches.forEach(m => {
+    if (!m.best) return;
+    const s = calcStake(m.best.kelly);
+    txt += `${m.home} — ${m.away}\n`;
+    txt += `  [${m.best.grade}] ${m.best.name} @ ${m.best.odd} | EV: +${m.best.ev}% | Kelly: ${m.best.kelly}%${s ? ` | ${fmt(s)} ₽` : ''}\n`;
+    txt += `  xG: ${m.lh} vs ${m.la} | Маржа: ${m.vig}%\n\n`;
+  });
+  navigator.clipboard.writeText(txt)
+    .then(() => toast('Скопировано в буфер'))
+    .catch(() => toast('Ошибка копирования', 'err'));
+}
+
+// ══ Init from LocalStorage ════════════════════════════════════════════════════
+function initFromStorage() {
+  const savedM   = lsGet(LS_M);
+  const savedT   = lsGet(LS_T);
+  const savedNg  = lsGet(LS_NG);
+  const savedCur = lsGet(LS_CUR);
+  const savedSt  = lsGet(LS_START);
+
+  if (savedNg)  $('ng').value = savedNg;
+  if (savedCur && savedCur > 0) currentBalance = savedCur;
+  if (savedSt  && savedSt  > 0) startBalance   = savedSt;
+  if (savedT   && Array.isArray(savedT)) tracker = savedT;
+
+  if (savedM && Array.isArray(savedM) && savedM.length) {
+    matches = savedM;
+    fetch('/restore', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({matches})
+    }).catch(() => {});
+    renderMatches();
+  }
+
+  renderTracker();
+  updateHeader();
+}
+
+// ══ Keyboard shortcut ════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !['BUTTON','INPUT'].includes(document.activeElement.tagName)) addMatch();
+});
+
+$('ng').addEventListener('change', saveState);
+
+initFromStorage();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(() => console.log('SW registered'))
+      .catch(err => console.warn('SW error:', err));
+  });
+}
+</script>
+</body>
+</html>
