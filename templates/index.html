@@ -390,10 +390,16 @@ function fmt(n) {
 }
 
 // ══ Stake calculation ═════════════════════════════════════════════════════════
-// Returns the stake in ₽ based on currentBalance and kelly%
+function grossBalance() {
+  const pending = tracker.filter(t => t.result === null && t.stakeDeducted)
+                         .reduce((s, t) => s + t.stake, 0);
+  return currentBalance + pending;
+}
+
 function calcStake(kelly) {
-  if (!currentBalance || currentBalance <= 0 || kelly <= 0) return 0;
-  return Math.max(Math.round(currentBalance * kelly / 100), 1);
+  const bal = grossBalance();
+  if (!bal || bal <= 0 || kelly <= 0) return 0;
+  return Math.max(Math.round(bal * kelly / 100), 1);
 }
 
 function stakeTag(kelly) {
