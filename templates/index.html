@@ -1349,10 +1349,13 @@ async function selectFbMatch(idx) {
     if (od.oa)  $('oa').value  = od.oa;
     if (od.otb) $('otb').value = od.otb;
     if (od.otm) $('otm').value = od.otm;
+    if (od.o1x) $('o1x').value = od.o1x;
+    if (od.ox2) $('ox2').value = od.ox2;
 
     const hasOdds = od.oh && od.ox && od.oa;
+    const missingMarkets = hasOdds ? ' (ТБ3.5, ТМ3.5, ОЗ введите вручную)' : '';
     toast(hasOdds
-      ? 'Статистика и коэффициенты загружены — нажмите Анализировать'
+      ? 'Статистика и коэффициенты загружены' + missingMarkets
       : 'Статистика загружена — введите коэффициенты и нажмите Анализировать'
     );
     $('oh').scrollIntoView({ behavior: 'smooth', block: 'center' });

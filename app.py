@@ -374,11 +374,22 @@ def _parse_espn_odds(comp):
     ov   = _g(tot, 'over',  'close', 'odds')
     un   = _g(tot, 'under', 'close', 'odds')
     result = {}
-    if h_ml: result['oh']  = _american_to_decimal(h_ml)
-    if x_ml: result['ox']  = _american_to_decimal(x_ml)
-    if a_ml: result['oa']  = _american_to_decimal(a_ml)
-    if ov:   result['otb'] = _american_to_decimal(ov)
-    if un:   result['otm'] = _american_to_decimal(un)
+    oh = _american_to_decimal(h_ml) if h_ml else None
+    ox = _american_to_decimal(x_ml) if x_ml else None
+    oa = _american_to_decimal(a_ml) if a_ml else None
+    if oh:  result['oh']  = oh
+    if ox:  result['ox']  = ox
+    if oa:  result['oa']  = oa
+    if ov:  result['otb'] = _american_to_decimal(ov)
+    if un:  result['otm'] = _american_to_decimal(un)
+    # Derive double chance from 3-way moneyline (remove vig, combine probs)
+    if oh and ox and oa:
+        total = 1/oh + 1/ox + 1/oa
+        p1 = (1/oh) / total
+        px = (1/ox) / total
+        p2 = (1/oa) / total
+        result['o1x'] = round(1 / (p1 + px), 2)
+        result['ox2'] = round(1 / (px + p2), 2)
     return result
 
 
