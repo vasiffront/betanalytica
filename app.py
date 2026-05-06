@@ -364,6 +364,8 @@ def _parse_espn_odds(comp):
     if not odds_list:
         return {}
     od = odds_list[0]
+    if not isinstance(od, dict):
+        return {}
     ml  = od.get('moneyline') or {}
     tot = od.get('total') or {}
     h_ml = _g(ml, 'home', 'close', 'odds')
@@ -391,34 +393,36 @@ def football_today():
         r.raise_for_status()
         matches = []
         for ev in r.json().get('events', []):
-            comp = (ev.get('competitions') or [{}])[0]
-            if not isinstance(comp, dict):
-                continue
-            if _g(comp, 'status', 'type', 'state') == 'post':
-                continue
-            cs = comp.get('competitors') or []
-            if len(cs) < 2:
-                continue
-            home = next((c for c in cs if c.get('homeAway') == 'home'), cs[0])
-            away = next((c for c in cs if c.get('homeAway') == 'away'), cs[1])
-            ts = ev.get('date', '')
             try:
-                t = datetime.fromisoformat(ts.replace('Z', '+00:00')).astimezone(_MSK).strftime('%H:%M')
+                comp = (ev.get('competitions') or [{}])[0]
+                if not isinstance(comp, dict):
+                    continue
+                if _g(comp, 'status', 'type', 'state') == 'post':
+                    continue
+                cs = comp.get('competitors') or []
+                if len(cs) < 2:
+                    continue
+                home = next((c for c in cs if c.get('homeAway') == 'home'), cs[0])
+                away = next((c for c in cs if c.get('homeAway') == 'away'), cs[1])
+                ts = ev.get('date', '')
+                try:
+                    t = datetime.fromisoformat(ts.replace('Z', '+00:00')).astimezone(_MSK).strftime('%H:%M')
+                except Exception:
+                    t = '—'
+                matches.append({
+                    'home':      (home.get('team') or {}).get('displayName', ''),
+                    'away':      (away.get('team') or {}).get('displayName', ''),
+                    'home_id':   (home.get('team') or {}).get('id', ''),
+                    'away_id':   (away.get('team') or {}).get('id', ''),
+                    'home_form': home.get('form') or '',
+                    'away_form': away.get('form') or '',
+                    'league':    '',
+                    'country':   '',
+                    'time':      t,
+                    'odds':      _parse_espn_odds(comp),
+                })
             except Exception:
-                t = '—'
-            match = {
-                'home':      (home.get('team') or {}).get('displayName', ''),
-                'away':      (away.get('team') or {}).get('displayName', ''),
-                'home_id':   (home.get('team') or {}).get('id', ''),
-                'away_id':   (away.get('team') or {}).get('id', ''),
-                'home_form': home.get('form') or '',
-                'away_form': away.get('form') or '',
-                'league':    '',
-                'country':   '',
-                'time':      t,
-                'odds':      _parse_espn_odds(comp),
-            }
-            matches.append(match)
+                continue
         matches.sort(key=lambda x: x['time'])
         result = {'matches': matches, 'total': len(matches), 'date': today}
         with _sched_cache['_lock']:
