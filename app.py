@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, jsonify, send_from_directory
 import math
+import os
+import unicodedata
 from itertools import product, combinations
 import uuid
 import threading
@@ -331,6 +333,68 @@ _ESPN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/all/scoreboard'
 _MSK  = timezone(timedelta(hours=3))
 _sched_cache = {'date': None, 'data': None, '_lock': threading.Lock()}
 
+# ─── The Odds API — totals 3.5 enrichment ─────────────────────────────────────
+
+ODDS_API_KEY  = os.environ.get('ODDS_API_KEY', '9f3e4a8a382f0bfa86bd679465732e15')
+_OAPI_BASE    = 'https://api.the-odds-api.com/v4/sports'
+_OAPI_LEAGUES = [
+    'soccer_epl', 'soccer_germany_bundesliga', 'soccer_spain_la_liga',
+    'soccer_italy_serie_a', 'soccer_france_ligue_one',
+    'soccer_uefa_champs_league', 'soccer_uefa_europa_league',
+    'soccer_conmebol_copa_libertadores',
+]
+_oapi_cache = {'date': None, 'data': {}, '_lock': threading.Lock()}
+
+
+def _norm_name(name):
+    n = unicodedata.normalize('NFKD', (name or '').lower())
+    return ''.join(c for c in n if not unicodedata.combining(c)).strip()
+
+
+def _fetch_oapi_today():
+    if not ODDS_API_KEY:
+        return {}
+    today = date.today().isoformat()
+    with _oapi_cache['_lock']:
+        if _oapi_cache['date'] == today and _oapi_cache['data']:
+            return _oapi_cache['data']
+    result = {}
+    for league in _OAPI_LEAGUES:
+        try:
+            r = _req.get(
+                f'{_OAPI_BASE}/{league}/odds/',
+                params={'apiKey': ODDS_API_KEY, 'regions': 'eu',
+                        'markets': 'totals', 'oddsFormat': 'decimal'},
+                timeout=10
+            )
+            if r.status_code != 200:
+                continue
+            for match in r.json():
+                key = (_norm_name(match.get('home_team', '')),
+                       _norm_name(match.get('away_team', '')))
+                overs, unders = [], []
+                for bm in match.get('bookmakers', []):
+                    for mkt in bm.get('markets', []):
+                        if mkt.get('key') != 'totals':
+                            continue
+                        for oc in mkt.get('outcomes', []):
+                            if oc.get('point') == 3.5:
+                                if oc.get('name') == 'Over':
+                                    overs.append(oc['price'])
+                                elif oc.get('name') == 'Under':
+                                    unders.append(oc['price'])
+                if overs and unders:
+                    result[key] = {
+                        'otb35': round(1 / (sum(1/o for o in overs) / len(overs)), 2),
+                        'otm35': round(1 / (sum(1/u for u in unders) / len(unders)), 2),
+                    }
+        except Exception:
+            continue
+    with _oapi_cache['_lock']:
+        _oapi_cache['date'] = today
+        _oapi_cache['data'] = result
+    return result
+
 
 def _form_pts(form_str):
     s = (form_str or '').strip().upper()
@@ -434,6 +498,11 @@ def football_today():
                 })
             except Exception:
                 continue
+        oapi = _fetch_oapi_today()
+        for m in matches:
+            key = (_norm_name(m['home']), _norm_name(m['away']))
+            if key in oapi:
+                m['odds'].update(oapi[key])
         matches.sort(key=lambda x: x['time'])
         result = {'matches': matches, 'total': len(matches), 'date': today}
         with _sched_cache['_lock']:
@@ -472,9 +541,18 @@ def football_stats():
     try:
         hs, hc, hg = get_team_season(home_id)
         as_, ac, ag = get_team_season(away_id)
-        return jsonify({'hs': hs, 'hc': hc, 'as': as_, 'ac': ac,
-                        'fh': _form_pts(home_form), 'fa': _form_pts(away_form),
-                        'ng': max(hg, ag, 1)})
+        ng = max(hg, ag, 1)
+        lh, la = calculate_lambdas(hs, hc, as_, ac, ng)
+        lh, la = home_away_bias(lh, la)
+        btts_p = (1 - math.exp(-lh)) * (1 - math.exp(-la))
+        btts_n = 1 - btts_p
+        return jsonify({
+            'hs': hs, 'hc': hc, 'as': as_, 'ac': ac,
+            'fh': _form_pts(home_form), 'fa': _form_pts(away_form),
+            'ng': ng,
+            'ob_yes': round(1 / btts_p, 2) if btts_p > 0.01 else None,
+            'ob_no':  round(1 / btts_n, 2) if btts_n > 0.01 else None,
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

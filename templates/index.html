@@ -1344,18 +1344,21 @@ async function selectFbMatch(idx) {
     $('ng').value   = s.ng  ?? 5;
 
     const od = m.odds || {};
-    if (od.oh)  $('oh').value  = od.oh;
-    if (od.ox)  $('ox').value  = od.ox;
-    if (od.oa)  $('oa').value  = od.oa;
-    if (od.otb) $('otb').value = od.otb;
-    if (od.otm) $('otm').value = od.otm;
-    if (od.o1x) $('o1x').value = od.o1x;
-    if (od.ox2) $('ox2').value = od.ox2;
+    if (od.oh)    $('oh').value    = od.oh;
+    if (od.ox)    $('ox').value    = od.ox;
+    if (od.oa)    $('oa').value    = od.oa;
+    if (od.otb)   $('otb').value   = od.otb;
+    if (od.otm)   $('otm').value   = od.otm;
+    if (od.o1x)   $('o1x').value   = od.o1x;
+    if (od.ox2)   $('ox2').value   = od.ox2;
+    if (od.otb35) $('otb35').value = od.otb35;
+    if (od.otm35) $('otm35').value = od.otm35;
+    if (s.ob_yes) $('ob_yes').value = s.ob_yes;
+    if (s.ob_no)  $('ob_no').value  = s.ob_no;
 
     const hasOdds = od.oh && od.ox && od.oa;
-    const missingMarkets = hasOdds ? ' (ТБ3.5, ТМ3.5, ОЗ введите вручную)' : '';
     toast(hasOdds
-      ? 'Статистика и коэффициенты загружены' + missingMarkets
+      ? 'Статистика и коэффициенты загружены — нажмите Анализировать'
       : 'Статистика загружена — введите коэффициенты и нажмите Анализировать'
     );
     $('oh').scrollIntoView({ behavior: 'smooth', block: 'center' });
