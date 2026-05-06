@@ -356,12 +356,14 @@ let matches        = [];
 let tracker        = [];
 let currentBalance = 0;
 let startBalance   = 0;
+let kellyBase      = 0; // declared bankroll for Kelly sizing — only changes when user sets balance
 
-const LS_M  = 'ba_matches';
-const LS_T  = 'ba_tracker';
-const LS_NG = 'ba_ng';
-const LS_CUR = 'ba_balance_cur';
-const LS_START = 'ba_balance_start';
+const LS_M      = 'ba_matches';
+const LS_T      = 'ba_tracker';
+const LS_NG     = 'ba_ng';
+const LS_CUR    = 'ba_balance_cur';
+const LS_START  = 'ba_balance_start';
+const LS_KELLY  = 'ba_kelly_base';
 
 // ══ LS helpers ═══════════════════════════════════════════════════════════════
 const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
@@ -373,6 +375,7 @@ function saveState() {
   lsSet(LS_NG,    $('ng').value);
   lsSet(LS_CUR,   currentBalance);
   lsSet(LS_START, startBalance);
+  lsSet(LS_KELLY, kellyBase);
 }
 
 // ══ Toast ════════════════════════════════════════════════════════════════════
@@ -390,16 +393,9 @@ function fmt(n) {
 }
 
 // ══ Stake calculation ═════════════════════════════════════════════════════════
-function grossBalance() {
-  const pending = tracker.filter(t => t.result === null && t.stakeDeducted)
-                         .reduce((s, t) => s + t.stake, 0);
-  return currentBalance + pending;
-}
-
 function calcStake(kelly) {
-  const bal = grossBalance();
-  if (!bal || bal <= 0 || kelly <= 0) return 0;
-  return Math.max(Math.round(bal * kelly / 100), 1);
+  if (!kellyBase || kellyBase <= 0 || kelly <= 0) return 0;
+  return Math.max(Math.round(kellyBase * kelly / 100), 1);
 }
 
 function stakeTag(kelly) {
@@ -482,12 +478,14 @@ function applyBalance() {
     // First time — set both current and start
     startBalance   = val;
     currentBalance = val;
+    kellyBase      = val;
     lsSet('ba_sessions', 1);
     toast(`Баланс установлен: ${fmt(val)} ₽`);
   } else {
     // Re-setting (user topped up or correcting)
     if (!confirm(`Обновить баланс до ${fmt(val)} ₽?\n(Начальный баланс сохранится: ${fmt(startBalance)} ₽)`)) return;
     currentBalance = val;
+    kellyBase      = val;
     const sess = (lsGet('ba_sessions') || 0) + 1;
     lsSet('ba_sessions', sess);
     toast(`Баланс обновлён: ${fmt(val)} ₽`);
@@ -973,10 +971,13 @@ function initFromStorage() {
   const savedNg  = lsGet(LS_NG);
   const savedCur = lsGet(LS_CUR);
   const savedSt  = lsGet(LS_START);
+  const savedKB  = lsGet(LS_KELLY);
 
   if (savedNg)  $('ng').value = savedNg;
   if (savedCur && savedCur > 0) currentBalance = savedCur;
   if (savedSt  && savedSt  > 0) startBalance   = savedSt;
+  // fall back to currentBalance for existing users who don't have kellyBase saved yet
+  kellyBase = (savedKB && savedKB > 0) ? savedKB : currentBalance;
   if (savedT   && Array.isArray(savedT)) tracker = savedT;
 
   if (savedM && Array.isArray(savedM) && savedM.length) {
