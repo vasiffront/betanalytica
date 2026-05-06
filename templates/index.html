@@ -650,6 +650,7 @@ function trackExpress(idx) {
   if (!alt) return;
 
   const stake = calcStake(alt.kelly);
+  currentBalance = Math.max(currentBalance - stake, 0);
   const entry = {
     id:         Date.now() + Math.random(),
     type:       'express',
@@ -661,7 +662,7 @@ function trackExpress(idx) {
     kelly:      alt.kelly,
     ev:         alt.ev,
     stake,
-    bal_before: currentBalance,
+    bal_before: currentBalance + stake,
     result:     null,
     at:         new Date().toLocaleString('ru')
   };
@@ -671,7 +672,7 @@ function trackExpress(idx) {
   updateHeader();
   showTab('tracker');
   fetchExpress(); // обновить список — убрать использованные матчи
-  toast(`Экспресс записан (${alt.combo.length} события) | Ставка: ${fmt(stake)} ₽`);
+  toast(`Экспресс записан (${alt.combo.length} события) | −${fmt(stake)} ₽ | Баланс: ${fmt(currentBalance)} ₽`);
 }
 
 // ══ Tracker ═══════════════════════════════════════════════════════════════════
@@ -684,6 +685,7 @@ function trackBet(info) {
   }
 
   const stake = calcStake(info.kelly);
+  currentBalance = Math.max(currentBalance - stake, 0);
   const entry = {
     id:         Date.now() + Math.random(),
     mid:        info.mid,
@@ -694,7 +696,7 @@ function trackBet(info) {
     kelly:      info.kelly,
     grade:      info.grade,
     stake:      stake,
-    bal_before: currentBalance,   // баланс ДО ставки
+    bal_before: currentBalance + stake,
     result:     null,
     at:         new Date().toLocaleString('ru')
   };
@@ -703,23 +705,20 @@ function trackBet(info) {
   renderTracker();
   updateHeader();
   showTab('tracker');
-  toast(`Записана: ${info.label} — ${info.name} | Ставка: ${fmt(stake)} ₽`);
+  toast(`Записана: ${info.label} — ${info.name} | −${fmt(stake)} ₽ | Баланс: ${fmt(currentBalance)} ₽`);
 }
 
 function setResult(id, result) {
   const t = tracker.find(x => x.id === id);
   if (!t) return;
 
-  // Откатить предыдущий результат если был
+  // Откатить предыдущий результат (ставка уже снята при добавлении)
   if (t.result === 'W') currentBalance -= Math.round(t.stake * (t.odd - 1));
-  if (t.result === 'L') currentBalance += t.stake;
 
   // Применить новый результат
   t.result = result;
   if (result === 'W') currentBalance += Math.round(t.stake * (t.odd - 1));
-  if (result === 'L') currentBalance -= t.stake;
 
-  // Баланс не уходит ниже 0
   currentBalance = Math.max(currentBalance, 0);
 
   saveState();
@@ -733,10 +732,9 @@ function setResult(id, result) {
     const profit = Math.round(t.stake * (t.odd - 1));
     toast(`Выиграл +${fmt(profit)} ₽ → Баланс: ${fmt(currentBalance)} ₽`);
   } else if (result === 'L') {
-    toast(`Проиграл −${fmt(t.stake)} ₽ → Баланс: ${fmt(currentBalance)} ₽`, 'err');
+    toast(`Ставка проиграна | Баланс: ${fmt(currentBalance)} ₽`, 'err');
   } else {
     toast('Результат сброшен');
-    // При сбросе — экспресс с этими матчами мог снова стать доступным
     if ($('tab-express').classList.contains('active')) fetchExpress();
   }
 }
@@ -744,10 +742,9 @@ function setResult(id, result) {
 function deleteTracked(id) {
   const t = tracker.find(x => x.id === id);
   if (!t) return;
-  // Откатить баланс если результат был зафиксирован
+  // Всегда возвращаем ставку; если победа — откатываем выигрыш
   if (t.result === 'W') currentBalance -= Math.round(t.stake * (t.odd - 1));
-  if (t.result === 'L') currentBalance += t.stake;
-  currentBalance = Math.max(currentBalance, 0);
+  currentBalance = Math.max(currentBalance + t.stake, 0);
   tracker = tracker.filter(x => x.id !== id);
   saveState();
   renderTracker();
