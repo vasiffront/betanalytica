@@ -492,11 +492,22 @@ function applyBalance() {
   }
 
   $('bw-input').value = '';
+
+  // Recalculate stakes for all pending tracker bets under new kellyBase
+  tracker.forEach(t => {
+    if (t.result !== null) return; // settled — don't touch
+    const newStake = calcStake(t.kelly);
+    if (t.stakeDeducted) currentBalance += t.stake; // return old stake
+    t.stake = newStake;
+    currentBalance = Math.max(currentBalance - newStake, 0);
+    t.stakeDeducted = true;
+  });
+
   saveState();
   renderBalanceWidget();
   updateHeader();
-  renderTracker(); // refresh stake amounts
-  renderMatches(); // refresh stake amounts on bet rows
+  renderTracker();
+  renderMatches();
 }
 
 // ══ Grade helper ═════════════════════════════════════════════════════════════
