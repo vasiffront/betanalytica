@@ -339,6 +339,38 @@ def _form_pts(form_str):
     return sum(3 if c == 'W' else 1 if c == 'D' else 0 for c in s[-5:])
 
 
+def _american_to_decimal(ml):
+    try:
+        ml = int(str(ml).replace('+', ''))
+        if ml > 0:
+            return round(ml / 100 + 1, 2)
+        else:
+            return round(100 / abs(ml) + 1, 2)
+    except Exception:
+        return None
+
+
+def _parse_espn_odds(comp):
+    odds_list = comp.get('odds') or []
+    if not odds_list:
+        return {}
+    od = odds_list[0]
+    ml  = od.get('moneyline', {})
+    tot = od.get('total', {})
+    h_ml = ml.get('home', {}).get('close', {}).get('odds')
+    x_ml = ml.get('draw', {}).get('close', {}).get('odds') or od.get('drawOdds', {}).get('moneyLine')
+    a_ml = ml.get('away', {}).get('close', {}).get('odds')
+    ov   = tot.get('over',  {}).get('close', {}).get('odds')
+    un   = tot.get('under', {}).get('close', {}).get('odds')
+    result = {}
+    if h_ml: result['oh']  = _american_to_decimal(h_ml)
+    if x_ml: result['ox']  = _american_to_decimal(x_ml)
+    if a_ml: result['oa']  = _american_to_decimal(a_ml)
+    if ov:   result['otb'] = _american_to_decimal(ov)
+    if un:   result['otm'] = _american_to_decimal(un)
+    return result
+
+
 @app.route('/football_today')
 def football_today():
     today = date.today().isoformat()
@@ -363,7 +395,7 @@ def football_today():
                 t = datetime.fromisoformat(ts.replace('Z', '+00:00')).astimezone(_MSK).strftime('%H:%M')
             except Exception:
                 t = '—'
-            matches.append({
+            match = {
                 'home':      home.get('team', {}).get('displayName', ''),
                 'away':      away.get('team', {}).get('displayName', ''),
                 'home_id':   home.get('team', {}).get('id', ''),
@@ -373,7 +405,9 @@ def football_today():
                 'league':    '',
                 'country':   '',
                 'time':      t,
-            })
+                'odds':      _parse_espn_odds(comp),
+            }
+            matches.append(match)
         matches.sort(key=lambda x: x['time'])
         result = {'matches': matches, 'total': len(matches), 'date': today}
         with _sched_cache['_lock']:

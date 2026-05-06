@@ -1343,9 +1343,20 @@ async function selectFbMatch(idx) {
     $('fa').value   = s.fa  ?? '';
     $('ng').value   = s.ng  ?? 5;
 
-    toast('Статистика загружена — введите коэффициенты и нажмите Анализировать');
+    const od = m.odds || {};
+    if (od.oh)  $('oh').value  = od.oh;
+    if (od.ox)  $('ox').value  = od.ox;
+    if (od.oa)  $('oa').value  = od.oa;
+    if (od.otb) $('otb').value = od.otb;
+    if (od.otm) $('otm').value = od.otm;
+
+    const hasOdds = od.oh && od.ox && od.oa;
+    toast(hasOdds
+      ? 'Статистика и коэффициенты загружены — нажмите Анализировать'
+      : 'Статистика загружена — введите коэффициенты и нажмите Анализировать'
+    );
     $('oh').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    $('oh').focus();
+    if (!hasOdds) $('oh').focus();
   } catch {
     toast('Ошибка загрузки статистики', 'err');
   } finally {
