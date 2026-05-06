@@ -350,18 +350,27 @@ def _american_to_decimal(ml):
         return None
 
 
+def _g(d, *keys):
+    """Safe nested get — treats None values same as missing keys."""
+    for k in keys:
+        if not isinstance(d, dict):
+            return None
+        d = d.get(k)
+    return d
+
+
 def _parse_espn_odds(comp):
     odds_list = comp.get('odds') or []
     if not odds_list:
         return {}
     od = odds_list[0]
-    ml  = od.get('moneyline', {})
-    tot = od.get('total', {})
-    h_ml = ml.get('home', {}).get('close', {}).get('odds')
-    x_ml = ml.get('draw', {}).get('close', {}).get('odds') or od.get('drawOdds', {}).get('moneyLine')
-    a_ml = ml.get('away', {}).get('close', {}).get('odds')
-    ov   = tot.get('over',  {}).get('close', {}).get('odds')
-    un   = tot.get('under', {}).get('close', {}).get('odds')
+    ml  = od.get('moneyline') or {}
+    tot = od.get('total') or {}
+    h_ml = _g(ml, 'home', 'close', 'odds')
+    x_ml = _g(ml, 'draw', 'close', 'odds') or _g(od, 'drawOdds', 'moneyLine')
+    a_ml = _g(ml, 'away', 'close', 'odds')
+    ov   = _g(tot, 'over',  'close', 'odds')
+    un   = _g(tot, 'under', 'close', 'odds')
     result = {}
     if h_ml: result['oh']  = _american_to_decimal(h_ml)
     if x_ml: result['ox']  = _american_to_decimal(x_ml)
