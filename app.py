@@ -392,9 +392,11 @@ def football_today():
         matches = []
         for ev in r.json().get('events', []):
             comp = (ev.get('competitions') or [{}])[0]
-            if comp.get('status', {}).get('type', {}).get('state') == 'post':
+            if not isinstance(comp, dict):
                 continue
-            cs = comp.get('competitors', [])
+            if _g(comp, 'status', 'type', 'state') == 'post':
+                continue
+            cs = comp.get('competitors') or []
             if len(cs) < 2:
                 continue
             home = next((c for c in cs if c.get('homeAway') == 'home'), cs[0])
@@ -405,10 +407,10 @@ def football_today():
             except Exception:
                 t = '—'
             match = {
-                'home':      home.get('team', {}).get('displayName', ''),
-                'away':      away.get('team', {}).get('displayName', ''),
-                'home_id':   home.get('team', {}).get('id', ''),
-                'away_id':   away.get('team', {}).get('id', ''),
+                'home':      (home.get('team') or {}).get('displayName', ''),
+                'away':      (away.get('team') or {}).get('displayName', ''),
+                'home_id':   (home.get('team') or {}).get('id', ''),
+                'away_id':   (away.get('team') or {}).get('id', ''),
                 'home_form': home.get('form') or '',
                 'away_form': away.get('form') or '',
                 'league':    '',
