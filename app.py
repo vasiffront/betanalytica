@@ -333,7 +333,10 @@ _sched_cache = {'date': None, 'data': None, '_lock': threading.Lock()}
 
 
 def _form_pts(form_str):
-    return sum(3 if c == 'W' else 1 if c == 'D' else 0 for c in (form_str or '')[-5:])
+    s = (form_str or '').strip().upper()
+    if not s:
+        return None
+    return sum(3 if c == 'W' else 1 if c == 'D' else 0 for c in s[-5:])
 
 
 @app.route('/football_today')
