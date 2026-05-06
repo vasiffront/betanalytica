@@ -30,7 +30,9 @@
   --red:      #f85149;
   --radius:   12px;
   --rsm:      7px;
+  --purple:   #bc8cff;
 }
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14px;min-height:100vh}
 
@@ -179,6 +181,24 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:768px){.g3{grid-template-columns:repeat(2,1fr)}.g4{grid-template-columns:repeat(2,1fr)}.wrap{padding:12px 8px}.tstats{grid-template-columns:repeat(2,1fr)}}
+/* ── Tracker filters ── */
+.tf-bar{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+.tf-btn{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:11px;font-weight:600;padding:4px 9px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.tf-btn:hover{border-color:var(--border2);color:var(--text)}
+.tf-btn.act{background:rgba(88,166,255,.15);border-color:rgba(88,166,255,.4);color:var(--blue)}
+.tf-btn.act-g{background:rgba(63,185,80,.12);border-color:rgba(63,185,80,.35);color:var(--green)}
+.tf-btn.act-r{background:rgba(248,81,73,.12);border-color:rgba(248,81,73,.35);color:var(--red)}
+.tf-sep{width:1px;height:18px;background:var(--border);margin:0 3px;align-self:center}
+/* ── Market stats ── */
+.mkt-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.mkt-tbl th{color:var(--muted);font-size:10px;text-transform:uppercase;font-weight:600;padding:5px 8px;border-bottom:1px solid var(--border);text-align:left}
+.mkt-tbl td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.04)}
+.mkt-tbl tr:last-child td{border-bottom:none}
+.mkt-tbl tr:hover td{background:rgba(255,255,255,.02)}
+/* ── Bankroll chart ── */
+#bw-chart{width:100%;height:44px;display:block;margin-top:10px;border-radius:4px}
+/* ── Match card actions ── */
+.mcard-actions{display:flex;gap:5px;align-items:center;margin-left:6px}
 </style>
 </head>
 <body>
@@ -214,41 +234,41 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
     <div class="ptitle"><i class="fa-solid fa-futbol"></i> Голы (за N матчей)</div>
     <div class="row g-2 mb-2">
-      <div class="col-3"><label class="flabel">Хоз. заб.</label><input id="hs" class="fc" type="number" min="0" placeholder="8"></div>
-      <div class="col-3"><label class="flabel">Хоз. проп.</label><input id="hc_i" class="fc" type="number" min="0" placeholder="4"></div>
-      <div class="col-3"><label class="flabel">Гос. заб.</label><input id="as_i" class="fc" type="number" min="0" placeholder="5"></div>
-      <div class="col-3"><label class="flabel">Гос. проп.</label><input id="ac" class="fc" type="number" min="0" placeholder="6"></div>
+      <div class="col-3"><label class="flabel">Хоз. заб.</label><input id="hs" class="fc" type="number" inputmode="numeric" min="0" placeholder="8"></div>
+      <div class="col-3"><label class="flabel">Хоз. проп.</label><input id="hc_i" class="fc" type="number" inputmode="numeric" min="0" placeholder="4"></div>
+      <div class="col-3"><label class="flabel">Гос. заб.</label><input id="as_i" class="fc" type="number" inputmode="numeric" min="0" placeholder="5"></div>
+      <div class="col-3"><label class="flabel">Гос. проп.</label><input id="ac" class="fc" type="number" inputmode="numeric" min="0" placeholder="6"></div>
     </div>
 
     <div class="row g-2 mb-3">
-      <div class="col-4"><label class="flabel">Форма хоз.</label><input id="fh" class="fc" type="number" min="0" max="15" placeholder="9"></div>
-      <div class="col-4"><label class="flabel">Форма гос.</label><input id="fa" class="fc" type="number" min="0" max="15" placeholder="7"></div>
-      <div class="col-4"><label class="flabel" title="Кол-во матчей в статистике">Матчей <i class="fa-solid fa-circle-question" style="font-size:9px;color:var(--blue)"></i></label><input id="ng" class="fc" type="number" min="1" max="20" placeholder="5" value="5"></div>
+      <div class="col-4"><label class="flabel">Форма хоз.</label><input id="fh" class="fc" type="number" inputmode="numeric" min="0" max="15" placeholder="9"></div>
+      <div class="col-4"><label class="flabel">Форма гос.</label><input id="fa" class="fc" type="number" inputmode="numeric" min="0" max="15" placeholder="7"></div>
+      <div class="col-4"><label class="flabel" title="Кол-во матчей в статистике">Матчей <i class="fa-solid fa-circle-question" style="font-size:9px;color:var(--blue)"></i></label><input id="ng" class="fc" type="number" inputmode="numeric" min="1" max="20" placeholder="5" value="5"></div>
     </div>
 
     <div class="ptitle"><i class="fa-solid fa-tags"></i> Коэффициенты</div>
     <label class="flabel" style="margin-bottom:4px">Исход (1X2)</label>
     <div class="g3 mb-2">
-      <input id="oh"  class="fc" type="number" step="0.01" placeholder="П1">
-      <input id="ox"  class="fc" type="number" step="0.01" placeholder="X">
-      <input id="oa"  class="fc" type="number" step="0.01" placeholder="П2">
+      <input id="oh"  class="fc" type="number" inputmode="decimal" step="0.01" placeholder="П1">
+      <input id="ox"  class="fc" type="number" inputmode="decimal" step="0.01" placeholder="X">
+      <input id="oa"  class="fc" type="number" inputmode="decimal" step="0.01" placeholder="П2">
     </div>
     <label class="flabel" style="margin-bottom:4px">Двойной шанс</label>
     <div class="g2 mb-2">
-      <input id="o1x" class="fc" type="number" step="0.01" placeholder="1X">
-      <input id="ox2" class="fc" type="number" step="0.01" placeholder="X2">
+      <input id="o1x" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="1X">
+      <input id="ox2" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="X2">
     </div>
     <label class="flabel" style="margin-bottom:4px">Тотал голов</label>
     <div class="g4 mb-2">
-      <input id="otb"   class="fc" type="number" step="0.01" placeholder="ТБ2.5">
-      <input id="otm"   class="fc" type="number" step="0.01" placeholder="ТМ2.5">
-      <input id="otb35" class="fc" type="number" step="0.01" placeholder="ТБ3.5">
-      <input id="otm35" class="fc" type="number" step="0.01" placeholder="ТМ3.5">
+      <input id="otb"   class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТБ2.5">
+      <input id="otm"   class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТМ2.5">
+      <input id="otb35" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТБ3.5">
+      <input id="otm35" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТМ3.5">
     </div>
     <label class="flabel" style="margin-bottom:4px">Обе забьют</label>
     <div class="g2 mb-3">
-      <input id="ob_yes" class="fc" type="number" step="0.01" placeholder="ОЗ Да">
-      <input id="ob_no"  class="fc" type="number" step="0.01" placeholder="ОЗ Нет">
+      <input id="ob_yes" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ОЗ Да">
+      <input id="ob_no"  class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ОЗ Нет">
     </div>
 
     <div class="g3" style="gap:7px">
@@ -311,17 +331,19 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="bw-glow"></div>
       <div class="bw-main">
         <div>
-          <div class="bw-label">Банкролл (основа Kelly)</div>
+          <div class="bw-label">Текущий банкролл</div>
           <div class="bw-amount" id="bw-amount" style="color:var(--green)">—</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">База Kelly: <span id="bw-base">—</span></div>
         </div>
         <div style="text-align:right">
           <div class="bw-label">Прибыль / убыток</div>
           <div class="bw-delta" id="bw-delta" style="font-size:16px;font-weight:700">—</div>
         </div>
       </div>
+      <canvas id="bw-chart" style="display:none"></canvas>
       <div class="bw-bottom" style="margin-top:10px">
         <div class="bw-edit">
-          <input id="bw-input" class="fc" type="number" min="0" placeholder="Введите банкролл ₽" onkeydown="if(event.key==='Enter')applyBalance()">
+          <input id="bw-input" class="fc" type="number" inputmode="numeric" min="0" placeholder="Введите банкролл ₽" onkeydown="if(event.key==='Enter')applyBalance()">
           <button class="btn-sm btn-track" onclick="applyBalance()"><i class="fa-solid fa-check"></i> Установить</button>
         </div>
       </div>
@@ -335,8 +357,36 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="tsc"><label>Прибыль</label><div class="tv" id="ts-profit">—</div></div>
     </div>
 
+    <!-- Filter bar -->
+    <div class="tf-bar" id="tf-bar" style="display:none">
+      <button class="tf-btn act" id="tf-all"     onclick="setTFilter('result','all')">Все</button>
+      <button class="tf-btn"     id="tf-pending" onclick="setTFilter('result','pending')"><i class="fa-solid fa-clock"></i> Ожидание</button>
+      <button class="tf-btn"     id="tf-W"       onclick="setTFilter('result','W')"><i class="fa-solid fa-check"></i> Выиграл</button>
+      <button class="tf-btn"     id="tf-L"       onclick="setTFilter('result','L')"><i class="fa-solid fa-xmark"></i> Проиграл</button>
+      <div class="tf-sep"></div>
+      <button class="tf-btn"     id="tf-gA" onclick="setTFilter('grade','A')"><span class="gr gr-A">A</span></button>
+      <button class="tf-btn"     id="tf-gB" onclick="setTFilter('grade','B')"><span class="gr gr-B">B</span></button>
+      <button class="tf-btn"     id="tf-gC" onclick="setTFilter('grade','C')"><span class="gr gr-C">C</span></button>
+      <button class="tf-btn"     id="tf-gD" onclick="setTFilter('grade','D')"><span class="gr gr-D">D</span></button>
+      <div class="tf-sep"></div>
+      <button class="tf-btn" id="tf-sort" onclick="toggleTSort()" style="margin-left:auto"><i class="fa-solid fa-arrow-down-short-wide"></i> <span id="tf-sort-lbl">Новые</span></button>
+    </div>
+
     <div id="tracker-list">
       <div class="empty"><i class="fa-solid fa-bookmark"></i>Нажмите <i class="fa-solid fa-bookmark" style="color:var(--blue)"></i> на ставке чтобы добавить в трекер</div>
+    </div>
+
+    <!-- Market stats -->
+    <div id="mkt-section" style="display:none;margin-top:12px">
+      <div class="ptitle" style="cursor:pointer" onclick="toggleMktStats()">
+        <i class="fa-solid fa-chart-bar"></i> Статистика по маркетам
+        <i class="fa-solid fa-chevron-down" id="mkt-chevron" style="margin-left:auto;font-size:9px;transition:transform .2s"></i>
+      </div>
+      <div id="mkt-body" style="display:none">
+        <table class="mkt-tbl"><thead><tr>
+          <th>Маркет</th><th>Ставок</th><th>Выиграл</th><th>Win%</th><th>ROI</th>
+        </tr></thead><tbody id="mkt-tbody"></tbody></table>
+      </div>
     </div>
   </div>
 
@@ -352,6 +402,8 @@ let tracker        = [];
 let currentBalance = 0;
 let startBalance   = 0;
 let kellyBase      = 0; // declared bankroll for Kelly sizing — only changes when user sets balance
+let tFilter        = { result: 'all', grade: 'all' };
+let tSortDesc      = true; // true = newest first
 
 const LS_M      = 'ba_matches';
 const LS_T      = 'ba_tracker';
@@ -419,10 +471,16 @@ function updateHeader() {
   const pending = tracker.filter(t => t.result === null).length;
   $('tb-mc').textContent = matches.length ? `(${matches.length})` : '';
   $('tb-tc').textContent = tracker.length ? `(${tracker.length})` : '';
-  // Balance pill
+  // Balance pill — show effective balance (kellyBase ± settled P&L)
   if (kellyBase > 0) {
-    $('hbal-txt').textContent = `${fmt(kellyBase)} ₽`;
-    $('hdr-bal').style.color = 'var(--green)';
+    const settledPnl = tracker.filter(t => t.result !== null).reduce((acc, t) => {
+      if (t.result === 'W') return acc + Math.round(t.stake * (t.odd - 1));
+      if (t.result === 'L') return acc - t.stake;
+      return acc;
+    }, 0);
+    const effective = kellyBase + settledPnl;
+    $('hbal-txt').textContent = `${fmt(effective)} ₽`;
+    $('hdr-bal').style.color = effective >= kellyBase ? 'var(--green)' : 'var(--red)';
   } else {
     $('hbal-txt').textContent = 'Задать баланс';
   }
@@ -435,6 +493,7 @@ function renderBalanceWidget() {
     $('bw-amount').style.color = 'var(--muted)';
     $('bw-delta').textContent  = 'Введите банкролл ниже';
     $('bw-delta').style.color  = 'var(--muted)';
+    $('bw-base').textContent   = '—';
     return;
   }
 
@@ -445,12 +504,81 @@ function renderBalanceWidget() {
     if (t.result === 'W') pnl += Math.round(t.stake * (t.odd - 1));
     else if (t.result === 'L') pnl -= t.stake;
   });
+  const effective = kellyBase + pnl;
   const sign = pnl >= 0 ? '+' : '';
 
-  $('bw-amount').textContent = `${fmt(kellyBase)} ₽`;
-  $('bw-amount').style.color = 'var(--green)';
+  $('bw-amount').textContent = `${fmt(effective)} ₽`;
+  $('bw-amount').style.color = effective >= kellyBase ? 'var(--green)' : 'var(--red)';
+  $('bw-base').textContent   = `${fmt(kellyBase)} ₽`;
   $('bw-delta').textContent  = settled.length ? `${sign}${fmt(pnl)} ₽` : '—';
   $('bw-delta').style.color  = pnl > 0 ? 'var(--green)' : pnl < 0 ? 'var(--red)' : 'var(--muted)';
+  renderChart(settled);
+}
+
+function renderChart(settled) {
+  const canvas = $('bw-chart');
+  if (!canvas || !kellyBase) { if (canvas) canvas.style.display = 'none'; return; }
+  if (!settled) settled = tracker.filter(t => t.result !== null);
+
+  // Need at least 1 resolved bet to draw anything useful
+  if (!settled.length) { canvas.style.display = 'none'; return; }
+
+  // Sort chronologically: use ts if available, else reverse array position
+  const sorted = settled.slice().sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+  // Build balance history: start → after each resolved bet
+  const points = [kellyBase];
+  let running = kellyBase;
+  sorted.forEach(t => {
+    if (t.result === 'W') running += Math.round(t.stake * (t.odd - 1));
+    else if (t.result === 'L') running -= t.stake;
+    points.push(Math.max(running, 0));
+  });
+
+  canvas.style.display = 'block';
+  const W = canvas.clientWidth || canvas.parentElement.clientWidth || 280;
+  const H = 44;
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  const minV  = Math.min(...points);
+  const maxV  = Math.max(...points);
+  const range = maxV - minV || 1;
+  const px = i => (i / (points.length - 1)) * (W - 4) + 2;
+  const py = v => H - 3 - ((v - minV) / range) * (H - 8);
+
+  const last  = points[points.length - 1];
+  const color = last >= kellyBase ? '#3fb950' : '#f85149';
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, last >= kellyBase ? 'rgba(63,185,80,.25)' : 'rgba(248,81,73,.25)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.beginPath();
+  ctx.moveTo(px(0), py(points[0]));
+  points.forEach((v, i) => { if (i > 0) ctx.lineTo(px(i), py(v)); });
+  ctx.lineTo(px(points.length - 1), H);
+  ctx.lineTo(px(0), H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(px(0), py(points[0]));
+  points.forEach((v, i) => { if (i > 0) ctx.lineTo(px(i), py(v)); });
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 1.5;
+  ctx.lineJoin    = 'round';
+  ctx.stroke();
+
+  // Endpoint dot
+  ctx.beginPath();
+  ctx.arc(px(points.length - 1), py(last), 3, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
 }
 
 function applyBalance() {
@@ -542,6 +670,7 @@ function matchCardHtml(m) {
     });
   }
 
+  const mid = m.id;
   return `
   <div class="mcard g${bg}">
     <div class="mcard-head">
@@ -549,6 +678,10 @@ function matchCardHtml(m) {
       <div class="mcard-meta">
         ${bg !== 'D' ? grHtml(bg) : ''}
         <span class="meta-tag">Маржа ${m.vig}%</span>
+        <div class="mcard-actions">
+          ${m._inputs ? `<button class="btn-sm btn-track" onclick="editMatch('${mid}')" title="Загрузить в форму"><i class="fa-solid fa-pen"></i></button>` : ''}
+          <button class="btn-sm" style="background:rgba(248,81,73,.1);color:var(--red)" onclick="deleteMatch('${mid}')" title="Удалить матч"><i class="fa-solid fa-trash"></i></button>
+        </div>
       </div>
     </div>
     <div class="xg-row">
@@ -651,6 +784,7 @@ function trackExpress(idx) {
   currentBalance = Math.max(currentBalance - stake, 0);
   const entry = {
     id:         Date.now() + Math.random(),
+    ts:         Date.now(),
     type:       'express',
     match_ids:  alt.combo.map(m => m.id),
     legs:       alt.combo.map(m => ({label: `${m.home} — ${m.away}`, name: m.best.name, odd: m.best.odd})),
@@ -687,6 +821,7 @@ function trackBet(info) {
   currentBalance = Math.max(currentBalance - stake, 0);
   const entry = {
     id:         Date.now() + Math.random(),
+    ts:         Date.now(),
     mid:        info.mid,
     label:      info.label,
     name:       info.name,
@@ -773,6 +908,107 @@ function deleteTracked(id) {
 }
 
 
+// ══ Tracker filters ══════════════════════════════════════════════════════════
+function setTFilter(key, val) {
+  tFilter[key] = val;
+  renderTracker();
+}
+
+function toggleTSort() {
+  tSortDesc = !tSortDesc;
+  $('tf-sort-lbl').textContent = tSortDesc ? 'Новые' : 'Старые';
+  renderTracker();
+}
+
+function updateFilterUI() {
+  const resIds = ['all','pending','W','L'];
+  resIds.forEach(id => $(`tf-${id}`)?.classList.remove('act','act-g','act-r'));
+  const rBtn = $(`tf-${tFilter.result}`);
+  if (rBtn) {
+    rBtn.classList.add(tFilter.result === 'W' ? 'act-g' : tFilter.result === 'L' ? 'act-r' : 'act');
+  }
+  ['A','B','C','D'].forEach(g => $(`tf-g${g}`)?.classList.remove('act'));
+  if (tFilter.grade !== 'all') $(`tf-g${tFilter.grade}`)?.classList.add('act');
+}
+
+// ══ Market stats ══════════════════════════════════════════════════════════════
+function renderMarketStats() {
+  const settled = tracker.filter(t => t.result !== null && t.name);
+  const section = $('mkt-section');
+  if (!settled.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  const mktMap = {};
+  settled.forEach(t => {
+    const k = t.name;
+    if (!mktMap[k]) mktMap[k] = { bets: 0, wins: 0, stake: 0, ret: 0 };
+    mktMap[k].bets++;
+    mktMap[k].stake += t.stake;
+    if (t.result === 'W') { mktMap[k].wins++; mktMap[k].ret += t.stake * t.odd; }
+  });
+
+  const rows = Object.entries(mktMap)
+    .sort((a, b) => b[1].bets - a[1].bets)
+    .map(([name, s]) => {
+      const wr  = (s.wins / s.bets * 100).toFixed(0);
+      const roi = s.stake ? ((s.ret - s.stake) / s.stake * 100).toFixed(1) : '—';
+      const rc  = parseFloat(roi) > 0 ? 'var(--green)' : parseFloat(roi) < 0 ? 'var(--red)' : 'var(--muted)';
+      const wc  = wr >= 55 ? 'var(--green)' : wr >= 40 ? 'var(--yellow)' : 'var(--red)';
+      return `<tr>
+        <td style="font-weight:600">${name}</td>
+        <td>${s.bets}</td>
+        <td>${s.wins}</td>
+        <td style="color:${wc}">${wr}%</td>
+        <td style="color:${rc}">${roi !== '—' ? (parseFloat(roi)>0?'+':'') + roi + '%' : '—'}</td>
+      </tr>`;
+    }).join('');
+  $('mkt-tbody').innerHTML = rows;
+}
+
+function toggleMktStats() {
+  const body    = $('mkt-body');
+  const chevron = $('mkt-chevron');
+  const open    = body.style.display !== 'none';
+  body.style.display    = open ? 'none' : 'block';
+  chevron.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+// ══ Edit / delete match ═══════════════════════════════════════════════════════
+function editMatch(id) {
+  const m = matches.find(x => x.id === id);
+  if (!m || !m._inputs) { toast('Нет данных для формы', 'err'); return; }
+  const inp = m._inputs;
+  $('home_team').value = inp.home_team || '';
+  $('away_team').value = inp.away_team || '';
+  $('hs').value  = inp.hs  ?? '';
+  $('hc_i').value = inp.hc ?? '';
+  $('as_i').value = inp.as ?? '';
+  $('ac').value  = inp.ac  ?? '';
+  $('fh').value  = inp.fh  ?? '';
+  $('fa').value  = inp.fa  ?? '';
+  $('ng').value  = inp.ng  ?? '5';
+  const od = inp.odds || {};
+  ['oh','ox','oa','o1x','ox2','otb','otm','otb35','otm35','ob_yes','ob_no'].forEach(k => {
+    $(k) && ($(k).value = od[k] || '');
+  });
+  showTab('matches');
+  $('home_team').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  toast('Данные загружены — измените и нажмите Анализировать');
+}
+
+function deleteMatch(id) {
+  if (!confirm('Удалить этот матч?')) return;
+  matches = matches.filter(m => m.id !== id);
+  fetch('/restore', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matches })
+  }).catch(() => {});
+  saveState();
+  renderMatches();
+  updateHeader();
+  if (matches.length >= 2 && $('tab-express').classList.contains('active')) fetchExpress();
+}
+
 function renderTracker() {
   renderBalanceWidget();
 
@@ -796,12 +1032,31 @@ function renderTracker() {
   $('ts-profit').textContent = totalStake ? (profit >= 0 ? '+' : '') + fmt(profit) + ' ₽' : '—';
   $('ts-profit').style.color = profit >= 0 ? 'var(--green)' : 'var(--red)';
 
+  renderMarketStats();
+
   if (!tracker.length) {
+    $('tf-bar').style.display = 'none';
     $('tracker-list').innerHTML = `<div class="empty"><i class="fa-solid fa-bookmark"></i>Нажмите <i class="fa-solid fa-bookmark" style="color:var(--blue)"></i> на ставке чтобы добавить в трекер</div>`;
     return;
   }
 
-  $('tracker-list').innerHTML = tracker.map(t => {
+  $('tf-bar').style.display = 'flex';
+  updateFilterUI();
+
+  // Apply filters + sort
+  let visible = tracker.slice();
+  if (tFilter.result === 'pending') visible = visible.filter(t => t.result === null);
+  else if (tFilter.result === 'W')  visible = visible.filter(t => t.result === 'W');
+  else if (tFilter.result === 'L')  visible = visible.filter(t => t.result === 'L');
+  if (tFilter.grade !== 'all') visible = visible.filter(t => t.grade === tFilter.grade);
+  if (!tSortDesc) visible = visible.slice().reverse(); // array was newest-first, reverse = oldest-first
+
+  if (!visible.length) {
+    $('tracker-list').innerHTML = `<div class="empty"><i class="fa-solid fa-filter"></i>Нет ставок по выбранному фильтру</div>`;
+    return;
+  }
+
+  $('tracker-list').innerHTML = visible.map(t => {
     const cls = t.result === 'W' ? 'won-bet' : t.result === 'L' ? 'lost-bet' : 'pend-bet';
 
     // ── Общие части ──
@@ -907,7 +1162,12 @@ function addMatch() {
   .then(r => r.json())
   .then(data => {
     if (data.error) { toast('Ошибка: ' + data.error, 'err'); return; }
-    matches = data.saved_matches;
+    // Preserve _inputs from existing local matches, add for new match
+    const prevInputs = {};
+    matches.forEach(m => { if (m._inputs) prevInputs[m.id] = m._inputs; });
+    matches = data.saved_matches.map(m => ({ ...m, _inputs: prevInputs[m.id] || m._inputs }));
+    const newMatch = matches.find(m => m.id === data.match.id);
+    if (newMatch) newMatch._inputs = { ...payload };
     saveState();
     renderMatches();
     updateHeader();

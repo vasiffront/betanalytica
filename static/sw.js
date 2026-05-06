@@ -1,4 +1,4 @@
-const CACHE = 'betanalytica-v1';
+const CACHE = 'betanalytica-v3';
 
 // Статические ресурсы которые кэшируются при установке
 const PRECACHE = [
