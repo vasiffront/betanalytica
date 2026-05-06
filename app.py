@@ -2,6 +2,9 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 import math
 from itertools import product, combinations
 import uuid
+import threading
+from datetime import date, datetime, timezone, timedelta
+import requests as _req
 
 app = Flask(__name__)
 SAVED_MATCHES = []
@@ -320,6 +323,96 @@ def build_express():
         })
 
     return jsonify({"alternatives": results})
+
+
+# ─── Football Today (Sofascore) ───────────────────────────────────────────────
+
+_SOFA = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Referer':    'https://www.sofascore.com/',
+    'Accept':     'application/json, text/plain, */*',
+    'Origin':     'https://www.sofascore.com',
+}
+_MSK  = timezone(timedelta(hours=3))
+_sched_cache = {'date': None, 'data': None, '_lock': threading.Lock()}
+
+
+@app.route('/football_today')
+def football_today():
+    today = date.today().isoformat()
+    with _sched_cache['_lock']:
+        if _sched_cache['date'] == today and _sched_cache['data']:
+            return jsonify(_sched_cache['data'])
+    try:
+        r = _req.get(
+            f'https://api.sofascore.com/api/v1/sport/football/scheduled-events/{today}',
+            headers=_SOFA, timeout=10
+        )
+        r.raise_for_status()
+        events = r.json().get('events', [])
+        matches = []
+        for ev in events:
+            if ev.get('status', {}).get('type') not in ('notstarted', 'scheduled'):
+                continue
+            home = ev.get('homeTeam', {})
+            away = ev.get('awayTeam', {})
+            if not home.get('id') or not away.get('id'):
+                continue
+            ts = ev.get('startTimestamp', 0)
+            tour = ev.get('tournament', {})
+            matches.append({
+                'home':    home.get('name', ''),
+                'away':    away.get('name', ''),
+                'home_id': home.get('id'),
+                'away_id': away.get('id'),
+                'league':  tour.get('name', ''),
+                'country': tour.get('category', {}).get('name', ''),
+                'time':    datetime.fromtimestamp(ts, tz=_MSK).strftime('%H:%M') if ts else '—',
+            })
+        matches.sort(key=lambda x: x['time'])
+        result = {'matches': matches, 'total': len(matches), 'date': today}
+        with _sched_cache['_lock']:
+            _sched_cache['date'] = today
+            _sched_cache['data'] = result
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/football_stats')
+def football_stats():
+    home_id = request.args.get('home_id', type=int)
+    away_id = request.args.get('away_id', type=int)
+    if not home_id or not away_id:
+        return jsonify({'error': 'Missing team IDs'}), 400
+
+    def get_stats(team_id):
+        try:
+            r = _req.get(
+                f'https://api.sofascore.com/api/v1/team/{team_id}/events/last/0',
+                headers=_SOFA, timeout=8
+            )
+            evs = r.json().get('events', [])
+            finished = [e for e in evs if e.get('status', {}).get('type') == 'finished'][-5:]
+            scored = conceded = form_pts = 0
+            for e in finished:
+                is_home = (e.get('homeTeam') or {}).get('id') == team_id
+                hs  = (e.get('homeScore') or {}).get('current', 0) or 0
+                aws = (e.get('awayScore') or {}).get('current', 0) or 0
+                if is_home:
+                    scored += hs; conceded += aws
+                    form_pts += 3 if hs > aws else (1 if hs == aws else 0)
+                else:
+                    scored += aws; conceded += hs
+                    form_pts += 3 if aws > hs else (1 if aws == hs else 0)
+            return scored, conceded, form_pts, max(len(finished), 1)
+        except Exception:
+            return 0, 0, 7, 5
+
+    hs, hc, fh, hg = get_stats(home_id)
+    as_, ac, fa, ag = get_stats(away_id)
+    return jsonify({'hs': hs, 'hc': hc, 'as': as_, 'ac': ac,
+                    'fh': fh, 'fa': fa, 'ng': max(hg, ag)})
 
 
 if __name__ == "__main__":

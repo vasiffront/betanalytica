@@ -1,4 +1,4 @@
-const CACHE = 'betanalytica-v3';
+const CACHE = 'betanalytica-v4';
 
 // Статические ресурсы которые кэшируются при установке
 const PRECACHE = [
@@ -8,7 +8,7 @@ const PRECACHE = [
 ];
 
 // API-пути — всегда через сеть, никогда не кэшируются
-const API_PATHS = ['/calculate', '/build_express', '/clear', '/restore'];
+const API_PATHS = ['/calculate', '/build_express', '/clear', '/restore', '/football_today', '/football_stats'];
 
 // ── Установка: закэшировать статику ─────────────────────────────────────────
 self.addEventListener('install', event => {

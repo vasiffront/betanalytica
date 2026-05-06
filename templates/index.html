@@ -199,6 +199,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #bw-chart{width:100%;height:44px;display:block;margin-top:10px;border-radius:4px}
 /* ── Match card actions ── */
 .mcard-actions{display:flex;gap:5px;align-items:center;margin-left:6px}
+/* ── Football Today ── */
+.fb-match{padding:9px 11px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.fb-match:hover{background:rgba(88,166,255,.07)}
+.fb-match:last-child{border-bottom:none}
+.fb-match.fb-loading{opacity:.55;pointer-events:none}
 </style>
 </head>
 <body>
@@ -224,6 +229,27 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 <!-- ══ LEFT: Form ═══════════════════════════════════════════════════════ -->
 <div class="col-lg-5">
+
+  <!-- ── Football Today ── -->
+  <div class="panel" id="fb-panel" style="padding:0;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:7px;padding:13px 16px;cursor:pointer" onclick="toggleFbPanel()">
+      <i class="fa-solid fa-calendar-day" style="color:var(--blue)"></i>
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)">Матчи сегодня</span>
+      <span id="fb-count" style="font-size:10px;color:var(--blue);font-weight:700"></span>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+        <button class="btn-sm btn-track" onclick="event.stopPropagation();loadTodayMatches(true)" title="Обновить список">
+          <i class="fa-solid fa-rotate" id="fb-spin"></i>
+        </button>
+        <i class="fa-solid fa-chevron-up" id="fb-chevron" style="font-size:9px;color:var(--muted);transition:transform .2s"></i>
+      </div>
+    </div>
+    <div id="fb-body">
+      <div id="fb-list" style="max-height:270px;overflow-y:auto;border-top:1px solid var(--border)">
+        <div class="empty" style="padding:18px 16px;font-size:12px"><i class="fa-solid fa-futbol" style="font-size:22px"></i>Загрузка матчей…</div>
+      </div>
+    </div>
+  </div>
+
   <div class="panel">
     <div class="ptitle"><i class="fa-solid fa-plus-circle"></i> Добавить матч</div>
 
@@ -1245,6 +1271,87 @@ function initFromStorage() {
 
   renderTracker();
   updateHeader();
+  setTimeout(loadTodayMatches, 400);
+}
+
+// ══ Football Today ════════════════════════════════════════════════════════════
+let fbMatches  = [];
+let fbPanelOpen = true;
+
+function toggleFbPanel() {
+  fbPanelOpen = !fbPanelOpen;
+  $('fb-body').style.display    = fbPanelOpen ? '' : 'none';
+  $('fb-chevron').style.transform = fbPanelOpen ? '' : 'rotate(180deg)';
+}
+
+async function loadTodayMatches(force) {
+  const spin = $('fb-spin');
+  spin.classList.add('fa-spin');
+  if (force) {
+    $('fb-list').innerHTML = '<div class="empty" style="padding:18px 16px;font-size:12px"><span class="spinner"></span> Обновление…</div>';
+  }
+  try {
+    const r    = await fetch('/football_today' + (force ? '?force=1' : ''));
+    const data = await r.json();
+    if (data.error) {
+      $('fb-list').innerHTML = `<div class="empty" style="padding:16px;font-size:12px"><i class="fa-solid fa-triangle-exclamation"></i>${data.error}</div>`;
+      return;
+    }
+    fbMatches = data.matches || [];
+    $('fb-count').textContent = fbMatches.length ? `(${fbMatches.length})` : '';
+    if (!fbMatches.length) {
+      $('fb-list').innerHTML = '<div class="empty" style="padding:16px;font-size:12px"><i class="fa-solid fa-calendar-xmark"></i>Нет матчей на сегодня</div>';
+      return;
+    }
+    $('fb-list').innerHTML = fbMatches.map((m, i) => `
+      <div class="fb-match" id="fbm-${i}" onclick="selectFbMatch(${i})">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:600;font-size:12px">${m.home} — ${m.away}</span>
+          <span style="font-size:11px;color:var(--blue);font-weight:700">${m.time}</span>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${m.country ? m.country + ' · ' : ''}${m.league}</div>
+      </div>`).join('');
+  } catch {
+    $('fb-list').innerHTML = '<div class="empty" style="padding:16px;font-size:12px"><i class="fa-solid fa-triangle-exclamation"></i>Ошибка загрузки</div>';
+  } finally {
+    spin.classList.remove('fa-spin');
+  }
+}
+
+async function selectFbMatch(idx) {
+  const m  = fbMatches[idx];
+  const el = $(`fbm-${idx}`);
+  if (!m || !el) return;
+
+  el.classList.add('fb-loading');
+  const nameEl = el.querySelector('span:first-child');
+  const orig   = nameEl.innerHTML;
+  nameEl.innerHTML = '<span class="spinner"></span> Загрузка статистики…';
+
+  try {
+    const r = await fetch(`/football_stats?home_id=${m.home_id}&away_id=${m.away_id}`);
+    const s = await r.json();
+    if (s.error) { toast('Ошибка статистики: ' + s.error, 'err'); return; }
+
+    $('home_team').value = m.home;
+    $('away_team').value = m.away;
+    $('hs').value   = s.hs  ?? '';
+    $('hc_i').value = s.hc  ?? '';
+    $('as_i').value = s.as  ?? '';
+    $('ac').value   = s.ac  ?? '';
+    $('fh').value   = s.fh  ?? '';
+    $('fa').value   = s.fa  ?? '';
+    $('ng').value   = s.ng  ?? 5;
+
+    toast('Статистика загружена — введите коэффициенты и нажмите Анализировать');
+    $('oh').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('oh').focus();
+  } catch {
+    toast('Ошибка загрузки статистики', 'err');
+  } finally {
+    el.classList.remove('fb-loading');
+    nameEl.innerHTML = orig;
+  }
 }
 
 // ══ Keyboard shortcut ════════════════════════════════════════════════════════
@@ -1254,7 +1361,7 @@ document.addEventListener('keydown', e => {
 
 $('ng').addEventListener('change', saveState);
 
-initFromStorage();
+initFromStorage(); // loadTodayMatches called inside with setTimeout
 </script>
 <script>
 if ('serviceWorker' in navigator) {
