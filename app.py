@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, send_from_directory
 import math
 import os
+import time
 import unicodedata
 from itertools import product, combinations
 from concurrent.futures import ThreadPoolExecutor
@@ -11,6 +12,23 @@ import requests as _req
 
 app = Flask(__name__)
 SAVED_MATCHES = []
+
+
+def _espn_get(url, params=None, timeout=8, retries=2, delay=1.0):
+    """GET with retry: on network error or 5xx, waits `delay` seconds and retries."""
+    for attempt in range(retries + 1):
+        try:
+            r = _req.get(url, params=params, timeout=timeout)
+            if r.status_code < 500:
+                return r
+            if attempt < retries:
+                time.sleep(delay)
+        except (_req.exceptions.ConnectionError, _req.exceptions.Timeout):
+            if attempt < retries:
+                time.sleep(delay)
+            else:
+                raise
+    return r
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 AVG_HOME_GOALS        = 1.49   # Historical football home average
@@ -165,9 +183,8 @@ def bet_grade(conf, ev_val):
 # ─── ESPN team stats helper ───────────────────────────────────────────────────
 
 def get_team_season(team_id, side='total'):
-    r = _req.get(
-        f'https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/{team_id}',
-        timeout=8
+    r = _espn_get(
+        f'https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/{team_id}'
     )
     r.raise_for_status()
     items = r.json().get('team', {}).get('record', {}).get('items', [])
@@ -194,7 +211,7 @@ def get_h2h_factor(home_id, away_id, max_meetings=10):
     if not home_id or not away_id:
         return 1.0, 1.0, 0
     try:
-        r = _req.get(
+        r = _espn_get(
             f'https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/{home_id}/schedule',
             timeout=6
         )
@@ -636,7 +653,7 @@ def football_today():
                     and now_ts - _sched_cache.get('_ts', 0) < 3600):
                 return jsonify(_sched_cache['data'])
     try:
-        r = _req.get(f'{_ESPN}?dates={today.replace("-","")}&limit=200', timeout=10)
+        r = _espn_get(f'{_ESPN}?dates={today.replace("-","")}&limit=200', timeout=10)
         r.raise_for_status()
         resp = r.json()
         league_map = {str(lg.get('id', '')): (lg.get('name') or '') for lg in (resp.get('leagues') or [])}
@@ -780,9 +797,9 @@ def check_results():
     out = {}
     for eid in event_ids:
         try:
-            r = _req.get(
+            r = _espn_get(
                 'https://site.api.espn.com/apis/site/v2/sports/soccer/all/summary',
-                params={'event': eid}, timeout=8
+                params={'event': eid}
             )
             if r.status_code != 200:
                 continue
