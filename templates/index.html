@@ -589,6 +589,7 @@ let fbAnalyzed = {}; // espn_id → grade  (for value badges in today list)
 let scoreCache = {}; // espn_id → {state, home_score, away_score}
 let lastFbEspnId  = null; // set when user selects a match from today panel
 let lastFbLeague  = null; // league name of last selected today-panel match
+let lastFbH2h     = null; // {lh, la, n} H2H factors from /football_stats
 let tgNotified = new Set(); // dedup keys (espn_id or match id) already sent to Telegram
 let tgLog = []; // [{text, time, grade}] — last 10 TG notifications
 let matchSort = 'added'; // 'added' | 'grade'
@@ -999,6 +1000,7 @@ function matchCardHtml(m) {
       <div style="height:4px;width:${bw(m.la)}px;background:linear-gradient(90deg,#f85149,#d29922);border-radius:2px"></div>
       <span style="color:var(--red);font-weight:700">${m.la} xG</span>
       <span style="margin-left:auto;font-size:10px">≈ ${(m.lh+m.la).toFixed(2)} гола</span>
+      ${m.h2h_n >= 3 ? `<span style="margin-left:8px;font-size:10px;color:var(--muted)" title="H2H поправка применена"><i class="fa-solid fa-arrow-right-arrow-left" style="font-size:9px"></i> H2H:${m.h2h_n}</span>` : ''}
     </div>
     ${(m.lh + m.la) < 1.2 ? `<div style="padding:5px 14px;font-size:11px;color:var(--yellow);background:rgba(210,153,34,.07);border-bottom:1px solid var(--border)"><i class="fa-solid fa-triangle-exclamation"></i> Низкий xG — возможно неполные данные ESPN. Проверьте статистику.</div>` : ''}
     ${rows}
@@ -1494,11 +1496,13 @@ function addMatch() {
   const _pendingEspnId    = lastFbEspnId;
   const _pendingMatchTime = lastFbMatchTime;
   const _pendingLeague    = lastFbLeague;
+  const _pendingH2h       = lastFbH2h;
   const payload = {
     home_team: $('home_team').value.trim(), away_team: $('away_team').value.trim(),
     hs: $('hs').value, hc: $('hc_i').value, as: $('as_i').value, ac: $('ac').value,
     fh: $('fh').value || 7.5, fa: $('fa').value || 7.5, ng: $('ng').value || 5,
     league: _pendingLeague || '',
+    h2h: _pendingH2h ? { lh: _pendingH2h.lh, la: _pendingH2h.la } : { lh: 1.0, la: 1.0 },
     odds: {
       oh: $('oh').value, ox: $('ox').value, oa: $('oa').value,
       o1x: $('o1x').value, ox2: $('ox2').value,
@@ -1526,6 +1530,7 @@ function addMatch() {
       if (_pendingEspnId)    newMatch.espn_id    = _pendingEspnId;
       if (_pendingMatchTime) newMatch.match_time = _pendingMatchTime;
       if (_pendingLeague)    newMatch.league     = _pendingLeague;
+      if (_pendingH2h?.n)    newMatch.h2h_n      = _pendingH2h.n;
     }
     // Track value badge for today panel
     if (_pendingEspnId && data.match.best) {
@@ -1535,6 +1540,7 @@ function addMatch() {
     lastFbEspnId    = null;
     lastFbMatchTime = null;
     lastFbLeague    = null;
+    lastFbH2h       = null;
     saveState();
     renderMatches();
     updateHeader();
@@ -2071,6 +2077,7 @@ async function selectFbMatch(idx) {
     lastFbEspnId    = m.espn_id || null;
     lastFbMatchTime = m.time    || null;
     lastFbLeague    = m.league  || null;
+    lastFbH2h       = s.h2h_n > 0 ? { lh: s.h2h_lh, la: s.h2h_la, n: s.h2h_n } : null;
 
     const hasOdds = od.oh && od.ox && od.oa;
     if (hasOdds) {

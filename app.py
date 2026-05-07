@@ -186,9 +186,67 @@ def get_team_season(team_id, side='total'):
     return 0, 0, 5
 
 
+def get_h2h_factor(home_id, away_id, max_meetings=10):
+    """Return (lh_factor, la_factor, count) based on H2H history via ESPN schedule.
+    Factors are in [0.92, 1.08]; returns (1.0, 1.0, 0) when data is insufficient.
+    home_wins/away_wins are relative to home_id being the 'home' team in today's match.
+    """
+    if not home_id or not away_id:
+        return 1.0, 1.0, 0
+    try:
+        r = _req.get(
+            f'https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/{home_id}/schedule',
+            timeout=6
+        )
+        if r.status_code != 200:
+            return 1.0, 1.0, 0
+        events = r.json().get('events', [])
+        home_wins = draws = away_wins = 0
+        count = 0
+        for ev in events:
+            if count >= max_meetings:
+                break
+            comp = (ev.get('competitions') or [{}])[0]
+            if not isinstance(comp, dict):
+                continue
+            if _g(comp, 'status', 'type', 'state') != 'post':
+                continue
+            cs = comp.get('competitors') or []
+            if len(cs) < 2:
+                continue
+            ids_in_match = [str((c.get('team') or {}).get('id', '')) for c in cs]
+            if str(away_id) not in ids_in_match:
+                continue
+            hc = next((c for c in cs if c.get('homeAway') == 'home'), cs[0])
+            ac = next((c for c in cs if c.get('homeAway') == 'away'), cs[1])
+            try:
+                hs = int(hc.get('score') or 0)
+                as_ = int(ac.get('score') or 0)
+            except Exception:
+                continue
+            # Determine result from today's home_id perspective
+            if str((hc.get('team') or {}).get('id', '')) == str(home_id):
+                if hs > as_:   home_wins += 1
+                elif hs == as_: draws += 1
+                else:           away_wins += 1
+            else:
+                if as_ > hs:   home_wins += 1
+                elif hs == as_: draws += 1
+                else:           away_wins += 1
+            count += 1
+        if count < 3:
+            return 1.0, 1.0, count
+        neutral = 1 / 3
+        lh_factor = 1.0 + (home_wins / count - neutral) * 0.24
+        la_factor = 1.0 + (away_wins / count - neutral) * 0.24
+        return round(max(min(lh_factor, 1.08), 0.92), 3), round(max(min(la_factor, 1.08), 0.92), 3), count
+    except Exception:
+        return 1.0, 1.0, 0
+
+
 # ─── Core analysis helper ─────────────────────────────────────────────────────
 
-def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, league=''):
+def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, league='', h2h=(1.0, 1.0)):
     """Run full Poisson + EV analysis. Returns match_data dict ready for SAVED_MATCHES."""
     def _o(key, default=2.0):
         val = odds.get(key)
@@ -210,6 +268,8 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
     lh = form_adjustment(lh, fh)
     la = form_adjustment(la, fa)
     lh, la = home_away_bias(lh, la)
+    lh = round(max(min(lh * h2h[0], 4.5), 0.50), 4)
+    la = round(max(min(la * h2h[1], 4.5), 0.50), 4)
 
     probs, p1, px, p2 = match_probabilities(lh, la)
     vig = calc_vig(oh, ox, oa)
@@ -317,8 +377,11 @@ def calculate():
         fa  = max(min(float(d.get("fa", 7.5)), 15.0), 0.0)
         ng  = max(int(d.get("ng", 5)), 1)
         league = d.get("league", "")
+        h2h_raw = d.get("h2h") or {}
+        try:    h2h = (float(h2h_raw.get('lh', 1.0)), float(h2h_raw.get('la', 1.0)))
+        except: h2h = (1.0, 1.0)
         match_data = _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng,
-                                   d.get("odds", {}), league)
+                                   d.get("odds", {}), league, h2h)
         SAVED_MATCHES.append(match_data)
         return jsonify({"top3": match_data["top3"], "saved_matches": SAVED_MATCHES,
                         "match": match_data})
@@ -647,10 +710,12 @@ def football_stats():
         hs, hc, hg = get_team_season(home_id, 'home')
         as_, ac, ag = get_team_season(away_id, 'away')
         ng = max(hg, ag, 1)
+        h2h_lh, h2h_la, h2h_n = get_h2h_factor(home_id, away_id)
         return jsonify({
             'hs': hs, 'hc': hc, 'as': as_, 'ac': ac,
             'fh': _form_pts(home_form), 'fa': _form_pts(away_form),
             'ng': ng,
+            'h2h_lh': h2h_lh, 'h2h_la': h2h_la, 'h2h_n': h2h_n,
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -677,10 +742,12 @@ def analyze_all():
             ng = max(hg, ag, 1)
             fh = _form_pts(m.get('home_form', '')) or 7.5
             fa = _form_pts(m.get('away_form', '')) or 7.5
+            h2h_lh, h2h_la, h2h_n = get_h2h_factor(m['home_id'], m['away_id'])
             result = _run_analysis(
                 m['home'], m['away'], hs, hc, as_, ac, fh, fa, ng,
-                m.get('odds', {}), m.get('league', '')
+                m.get('odds', {}), m.get('league', ''), (h2h_lh, h2h_la)
             )
+            result['h2h_n'] = h2h_n
             if not result.get('best'):
                 return None
             result['time']    = m.get('time', '')
