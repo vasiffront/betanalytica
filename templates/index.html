@@ -228,6 +228,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 /* ── TG log ── */
 .tg-log-item{font-size:11px;padding:5px 0;border-bottom:1px solid var(--border);color:var(--text);line-height:1.4}
 .tg-log-item:last-child{border-bottom:none}
+/* ── Mobile stats bar ── */
+#mobile-stats-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:60;background:rgba(22,27,34,.97);border-top:1px solid var(--border);backdrop-filter:blur(10px);padding:8px 16px;align-items:center;justify-content:space-around}
+@media(max-width:768px){#mobile-stats-bar.visible{display:flex}.wrap{padding-bottom:56px}}
+/* ── Chart tooltip ── */
+#chart-tooltip{position:absolute;top:2px;display:none;background:var(--bg-card2);border:1px solid var(--border2);border-radius:5px;padding:4px 9px;font-size:11px;pointer-events:none;white-space:nowrap;z-index:10;transform:translateX(-50%)}
+/* ── Match card collapse ── */
+.mc-chev{font-size:9px;color:var(--muted);transition:transform .2s;margin-left:3px;flex-shrink:0}
+.mcard-head{cursor:pointer}
 </style>
 </head>
 <body>
@@ -464,7 +472,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
           <div class="bw-delta" id="bw-delta" style="font-size:16px;font-weight:700">—</div>
         </div>
       </div>
-      <canvas id="bw-chart" style="display:none"></canvas>
+      <div style="position:relative">
+        <canvas id="bw-chart" style="display:none"></canvas>
+        <div id="chart-tooltip"></div>
+      </div>
       <div class="bw-bottom" style="margin-top:10px">
         <div class="bw-edit">
           <input id="bw-input" class="fc" type="number" inputmode="numeric" min="0" placeholder="Введите банкролл ₽" onkeydown="if(event.key==='Enter')applyBalance()">
@@ -777,6 +788,8 @@ function showTab(name) {
     $(`tb-${t}`).classList.toggle('active', t === name);
   });
   if (name === 'express') fetchExpress();
+  const msb = $('mobile-stats-bar');
+  if (msb) msb.classList.toggle('visible', name === 'tracker');
 }
 
 // ══ Header ════════════════════════════════════════════════════════════════════
@@ -869,8 +882,8 @@ function renderChart(settled) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, W, H);
 
-  const minV  = Math.min(...points);
-  const maxV  = Math.max(...points);
+  const minV  = Math.min(...points, kellyBase);
+  const maxV  = Math.max(...points, kellyBase);
   const range = maxV - minV || 1;
   const px = i => (i / (points.length - 1)) * (W - 4) + 2;
   const py = v => H - 3 - ((v - minV) / range) * (H - 8);
@@ -878,9 +891,20 @@ function renderChart(settled) {
   const last  = points[points.length - 1];
   const color = last >= kellyBase ? '#3fb950' : '#f85149';
 
+  // Start/baseline dashed line at kellyBase
+  const baseY = py(kellyBase);
+  ctx.beginPath();
+  ctx.moveTo(2, baseY);
+  ctx.lineTo(W - 2, baseY);
+  ctx.strokeStyle = 'rgba(255,255,255,.12)';
+  ctx.lineWidth   = 1;
+  ctx.setLineDash([3, 5]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
   // Gradient fill
   const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, last >= kellyBase ? 'rgba(63,185,80,.25)' : 'rgba(248,81,73,.25)');
+  grad.addColorStop(0, last >= kellyBase ? 'rgba(63,185,80,.3)' : 'rgba(248,81,73,.3)');
   grad.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.beginPath();
   ctx.moveTo(px(0), py(points[0]));
@@ -905,6 +929,25 @@ function renderChart(settled) {
   ctx.arc(px(points.length - 1), py(last), 3, 0, Math.PI * 2);
   ctx.fillStyle = color;
   ctx.fill();
+
+  // Tooltip on hover
+  const tip = $('chart-tooltip');
+  const labels = ['Старт', ...sorted.map(t => t.at ? t.at.split(',')[0] : '')];
+  canvas.onmousemove = e => {
+    if (!tip) return;
+    const rect = canvas.getBoundingClientRect();
+    const x    = e.clientX - rect.left;
+    const step = (W - 4) / Math.max(points.length - 1, 1);
+    const idx  = Math.max(0, Math.min(Math.round((x - 2) / step), points.length - 1));
+    const val  = points[idx];
+    const diff = val - kellyBase;
+    const sign = diff >= 0 ? '+' : '';
+    const vc   = val >= kellyBase ? 'var(--green)' : 'var(--red)';
+    tip.style.display = 'block';
+    tip.style.left    = Math.max(30, Math.min(px(idx), W - 30)) + 'px';
+    tip.innerHTML     = `<b style="color:${vc}">${fmt(val)} ₽</b>&nbsp;<span style="color:var(--muted);font-size:10px">${sign}${fmt(diff)}</span>${labels[idx] ? `<br><span style="color:var(--muted)">${labels[idx]}</span>` : ''}`;
+  };
+  canvas.onmouseleave = () => { if (tip) tip.style.display = 'none'; };
 }
 
 function applyBalance() {
@@ -952,8 +995,26 @@ function applyBalance() {
 const grHtml = g => `<span class="gr gr-${g}">${g}</span>`;
 
 // ══ Match card ════════════════════════════════════════════════════════════════
+function toggleCard(mid) {
+  const body = $(`mc-body-${mid}`);
+  const chev = $(`mc-chev-${mid}`);
+  if (!body) return;
+  const collapsed = body.style.display === 'none';
+  body.style.display      = collapsed ? '' : 'none';
+  if (chev) chev.style.transform = collapsed ? '' : 'rotate(180deg)';
+}
+
+function copyBet(info) {
+  const stk = info.stake ? ` | ${fmt(info.stake)} ₽` : '';
+  const txt = `${info.home} — ${info.away} / ${info.name} / коэф ${info.odd} / Kelly ${info.kelly}%${stk} / EV +${info.ev}%`;
+  navigator.clipboard.writeText(txt)
+    .then(() => toast('Ставка скопирована'))
+    .catch(() => toast('Ошибка копирования', 'err'));
+}
+
 function matchCardHtml(m, isNew=false) {
   const bg   = m.best ? m.best.grade : 'D';
+  const mid  = m.id;
   const xMax = Math.max(m.lh, m.la, 1.5);
   const bw   = v => Math.round(v / xMax * 68);
 
@@ -962,9 +1023,10 @@ function matchCardHtml(m, isNew=false) {
     rows = `<div class="bet-row" style="color:var(--muted);font-size:12px;padding:12px 14px">Нет ставок с положительным EV</div>`;
   } else {
     m.top3.forEach(([name, b], i) => {
-      const isTop = i === 0;
-      const vrc   = b.vr >= 1.05 ? 'var(--green)' : b.vr >= 1.0 ? 'var(--muted)' : 'var(--red)';
-      const stk   = stakeTag(b.kelly);
+      const isTop    = i === 0;
+      const vrc      = b.vr >= 1.05 ? 'var(--green)' : b.vr >= 1.0 ? 'var(--muted)' : 'var(--red)';
+      const stk      = stakeTag(b.kelly);
+      const stakeAmt = calcStake(b.kelly);
       rows += `
       <div class="bet-row ${isTop ? 'top-bet' : ''}">
         <div class="bet-top">
@@ -977,6 +1039,9 @@ function matchCardHtml(m, isNew=false) {
             <span class="odd-val">${b.odd}</span>
             <span class="ev-tag">+${b.ev}%</span>
             ${stk}
+            <button class="btn-sm btn-track" onclick='copyBet(${JSON.stringify({home:m.home,away:m.away,name,odd:b.odd,ev:b.ev,kelly:b.kelly,grade:b.grade,stake:stakeAmt})})' title="Копировать ставку">
+              <i class="fa-solid fa-copy"></i>
+            </button>
             <button class="btn-sm btn-track" onclick='trackBet(${JSON.stringify({mid:m.id,label:m.home+" — "+m.away,name,odd:b.odd,prob:b.prob,kelly:b.kelly,grade:b.grade,ev:b.ev})})' title="Записать ставку в трекер">
               <i class="fa-solid fa-bookmark"></i>
             </button>
@@ -997,31 +1062,33 @@ function matchCardHtml(m, isNew=false) {
     });
   }
 
-  const mid = m.id;
   return `
   <div class="mcard g${bg.toLowerCase()}${isNew ? ' new-card' : ''}">
-    <div class="mcard-head">
+    <div class="mcard-head" onclick="toggleCard('${mid}')">
       <div class="teams"><span>${m.home}</span><span class="vs">VS</span><span>${m.away}</span></div>
       <div class="mcard-meta">
         ${bg !== 'D' ? grHtml(bg) : ''}
         <span class="meta-tag">Маржа ${m.vig}%</span>
         <div class="mcard-actions">
-          ${m._inputs ? `<button class="btn-sm btn-track" onclick="editMatch('${mid}')" title="Загрузить в форму"><i class="fa-solid fa-pen"></i></button>` : ''}
-          <button class="btn-sm" style="background:rgba(248,81,73,.1);color:var(--red)" onclick="deleteMatch('${mid}')" title="Удалить матч"><i class="fa-solid fa-trash"></i></button>
+          ${m._inputs ? `<button class="btn-sm btn-track" onclick="event.stopPropagation();editMatch('${mid}')" title="Загрузить в форму"><i class="fa-solid fa-pen"></i></button>` : ''}
+          <button class="btn-sm" style="background:rgba(248,81,73,.1);color:var(--red)" onclick="event.stopPropagation();deleteMatch('${mid}')" title="Удалить матч"><i class="fa-solid fa-trash"></i></button>
+          <i class="fa-solid fa-chevron-down mc-chev" id="mc-chev-${mid}"></i>
         </div>
       </div>
     </div>
-    <div class="xg-row">
-      <span style="color:var(--blue);font-weight:700">${m.lh} xG</span>
-      <div style="height:4px;width:${bw(m.lh)}px;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:2px"></div>
-      <span style="color:var(--muted);font-size:10px">|</span>
-      <div style="height:4px;width:${bw(m.la)}px;background:linear-gradient(90deg,#f85149,#d29922);border-radius:2px"></div>
-      <span style="color:var(--red);font-weight:700">${m.la} xG</span>
-      <span style="margin-left:auto;font-size:10px">≈ ${(m.lh+m.la).toFixed(2)} гола</span>
-      ${m.h2h_n >= 3 ? `<span style="margin-left:8px;font-size:10px;color:var(--muted)" title="H2H поправка применена"><i class="fa-solid fa-arrow-right-arrow-left" style="font-size:9px"></i> H2H:${m.h2h_n}</span>` : ''}
+    <div id="mc-body-${mid}">
+      <div class="xg-row">
+        <span style="color:var(--blue);font-weight:700">${m.lh} xG</span>
+        <div style="height:4px;width:${bw(m.lh)}px;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:2px"></div>
+        <span style="color:var(--muted);font-size:10px">|</span>
+        <div style="height:4px;width:${bw(m.la)}px;background:linear-gradient(90deg,#f85149,#d29922);border-radius:2px"></div>
+        <span style="color:var(--red);font-weight:700">${m.la} xG</span>
+        <span style="margin-left:auto;font-size:10px">≈ ${(m.lh+m.la).toFixed(2)} гола</span>
+        ${m.h2h_n >= 3 ? `<span style="margin-left:8px;font-size:10px;color:var(--muted)" title="H2H поправка применена"><i class="fa-solid fa-arrow-right-arrow-left" style="font-size:9px"></i> H2H:${m.h2h_n}</span>` : ''}
+      </div>
+      ${(m.lh + m.la) < 1.2 ? `<div style="padding:5px 14px;font-size:11px;color:var(--yellow);background:rgba(210,153,34,.07);border-bottom:1px solid var(--border)"><i class="fa-solid fa-triangle-exclamation"></i> Низкий xG — возможно неполные данные ESPN. Проверьте статистику.</div>` : ''}
+      ${rows}
     </div>
-    ${(m.lh + m.la) < 1.2 ? `<div style="padding:5px 14px;font-size:11px;color:var(--yellow);background:rgba(210,153,34,.07);border-bottom:1px solid var(--border)"><i class="fa-solid fa-triangle-exclamation"></i> Низкий xG — возможно неполные данные ESPN. Проверьте статистику.</div>` : ''}
-    ${rows}
   </div>`;
 }
 
@@ -1252,6 +1319,41 @@ function deleteTracked(id) {
 }
 
 
+// ══ Inline stake edit ════════════════════════════════════════════════════════
+function startEditStake(id) {
+  const t = tracker.find(x => x.id === id);
+  if (!t || t.result !== null) return;
+  const viewEl = $(`sv-${id}`);
+  const formEl = $(`sf-${id}`);
+  if (!viewEl || !formEl) return;
+  viewEl.style.display = 'none';
+  formEl.style.display = 'inline-flex';
+  const inp = $(`si-${id}`);
+  if (inp) { inp.focus(); inp.select(); }
+}
+
+function cancelStake(id) {
+  const viewEl = $(`sv-${id}`);
+  const formEl = $(`sf-${id}`);
+  if (viewEl) viewEl.style.display = '';
+  if (formEl) formEl.style.display = 'none';
+}
+
+function saveStake(id) {
+  const t = tracker.find(x => x.id === id);
+  if (!t) return;
+  const inp = $(`si-${id}`);
+  if (!inp) return;
+  const newVal = parseInt(inp.value);
+  if (!newVal || newVal <= 0) { cancelStake(id); return; }
+  if (t.stakeDeducted) currentBalance += t.stake;
+  t.stake = newVal;
+  if (t.stakeDeducted) currentBalance = Math.max(currentBalance - newVal, 0);
+  saveState();
+  renderTracker();
+  toast(`Ставка изменена: ${fmt(newVal)} ₽`);
+}
+
 // ══ Tracker filters ══════════════════════════════════════════════════════════
 function setTFilter(key, val) {
   tFilter[key] = val;
@@ -1388,6 +1490,12 @@ function renderTracker() {
   $('ts-profit').textContent = totalStake ? (profit >= 0 ? '+' : '') + fmt(profit) + ' ₽' : '—';
   $('ts-profit').style.color = profit >= 0 ? 'var(--green)' : 'var(--red)';
 
+  // Sync mobile stats bar
+  const msbWr = $('msb-wr'), msbRoi = $('msb-roi'), msbProfit = $('msb-profit');
+  if (msbWr) { msbWr.textContent = wr !== null ? wr + '%' : '—'; msbWr.style.color = wr >= 55 ? 'var(--green)' : wr >= 45 ? 'var(--yellow)' : 'var(--red)'; }
+  if (msbRoi) { msbRoi.textContent = roi !== null ? (roi > 0 ? '+' : '') + roi + '%' : '—'; msbRoi.style.color = roi > 0 ? 'var(--green)' : roi < 0 ? 'var(--red)' : 'var(--muted)'; }
+  if (msbProfit) { msbProfit.textContent = totalStake ? (profit >= 0 ? '+' : '') + fmt(profit) + ' ₽' : '—'; msbProfit.style.color = profit >= 0 ? 'var(--green)' : 'var(--red)'; }
+
   // P&L detail row
   const pnlEl = $('pnl-detail');
   if (pnlEl && tracker.length) {
@@ -1490,6 +1598,9 @@ function renderTracker() {
     const scorePill = sc && sc.home_score != null
       ? `<span class="score-pill">${sc.home_score}:${sc.away_score}${sc.state === 'in' ? ' ●' : ''}</span>`
       : '';
+    const stakeEditPen = t.result === null
+      ? `<button style="background:none;border:none;color:var(--muted);font-size:9px;padding:1px 3px;cursor:pointer;vertical-align:middle" onclick="startEditStake(${t.id})" title="Изменить ставку"><i class="fa-solid fa-pen-to-square"></i></button>`
+      : '';
     return `
     <div class="tbet ${cls}">
       <div class="tbet-top">
@@ -1500,7 +1611,7 @@ function renderTracker() {
         <b style="color:var(--text)">${t.name}</b> @ <b style="color:var(--blue)">${t.odd}</b>
         &nbsp;·&nbsp; Вер: ${t.prob}%
         &nbsp;·&nbsp; Kelly: ${t.kelly}%
-        &nbsp;·&nbsp; Ставка: <b style="color:var(--purple)">${fmt(t.stake)} ₽</b>
+        &nbsp;·&nbsp; <span id="sv-${t.id}">Ставка: <b style="color:var(--purple)">${fmt(t.stake)} ₽</b>${stakeEditPen}</span><span id="sf-${t.id}" style="display:none;align-items:center;gap:4px">Ставка:&nbsp;<input type="number" id="si-${t.id}" style="width:70px;background:var(--bg-in);border:1px solid var(--border2);border-radius:3px;color:var(--text);padding:2px 6px;font-size:12px" value="${t.stake}" onkeydown="if(event.key==='Enter')saveStake(${t.id});if(event.key==='Escape')cancelStake(${t.id})"><button class="btn-sm btn-won" style="padding:2px 7px" onclick="saveStake(${t.id})"><i class="fa-solid fa-check"></i></button><button class="btn-sm" style="padding:2px 7px;background:rgba(255,255,255,.06);color:var(--muted)" onclick="cancelStake(${t.id})"><i class="fa-solid fa-xmark"></i></button></span>
         <br><span style="font-size:10px">${t.at}</span>
       </div>
       <div class="tbet-actions">${actBtns}</div>
@@ -2276,6 +2387,25 @@ $('ng').addEventListener('change', saveState);
 
 initFromStorage(); // loadTodayMatches called inside with setTimeout
 </script>
+
+<!-- ══ Mobile sticky stats bar ══ -->
+<div id="mobile-stats-bar">
+  <div style="text-align:center">
+    <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Win%</div>
+    <div id="msb-wr" style="font-size:15px;font-weight:700">—</div>
+  </div>
+  <div style="width:1px;height:28px;background:var(--border)"></div>
+  <div style="text-align:center">
+    <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">ROI</div>
+    <div id="msb-roi" style="font-size:15px;font-weight:700">—</div>
+  </div>
+  <div style="width:1px;height:28px;background:var(--border)"></div>
+  <div style="text-align:center">
+    <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Прибыль</div>
+    <div id="msb-profit" style="font-size:15px;font-weight:700">—</div>
+  </div>
+</div>
+
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
