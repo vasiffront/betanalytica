@@ -934,6 +934,7 @@ function matchCardHtml(m) {
       <span style="color:var(--red);font-weight:700">${m.la} xG</span>
       <span style="margin-left:auto;font-size:10px">≈ ${(m.lh+m.la).toFixed(2)} гола</span>
     </div>
+    ${(m.lh + m.la) < 1.2 ? `<div style="padding:5px 14px;font-size:11px;color:var(--yellow);background:rgba(210,153,34,.07);border-bottom:1px solid var(--border)"><i class="fa-solid fa-triangle-exclamation"></i> Низкий xG — возможно неполные данные ESPN. Проверьте статистику.</div>` : ''}
     ${rows}
   </div>`;
 }

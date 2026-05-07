@@ -79,7 +79,9 @@ def calculate_lambdas(hs, hc, as_, ac, ng=5):
     lh = home_attack * away_defense * AVG_HOME_GOALS
     la = away_attack * home_defense * AVG_AWAY_GOALS
 
-    return max(min(lh, 4.5), 0.25), max(min(la, 4.5), 0.25)
+    # Floor of 0.50 per team — lambdas below this indicate missing/unreliable ESPN data.
+    # Real professional matches have at least ~1.0 combined xG; 0.25 allowed absurd results.
+    return max(min(lh, 4.5), 0.50), max(min(la, 4.5), 0.50)
 
 def form_adjustment(lmbd, form_pts):
     """±20% max. form_pts 0–15 (5 games × 3 pts). 7.5 = neutral."""
@@ -273,7 +275,19 @@ def calculate():
                 "logical":     round(h_prob * (conf / 100), 4),
             }
 
-        top3 = sorted(bets.items(), key=lambda x: x[1]["logical"], reverse=True)[:3]
+        ranked = sorted(bets.items(), key=lambda x: x[1]["logical"], reverse=True)
+        # Drop the weaker of 1X/X2 if both appear — they share the draw outcome and
+        # showing both is confusing (it just means "draw is very likely").
+        seen_dc = False
+        top3 = []
+        for item in ranked:
+            if item[0] in ("1X", "X2"):
+                if seen_dc:
+                    continue
+                seen_dc = True
+            top3.append(item)
+            if len(top3) == 3:
+                break
         best = top3[0] if top3 else None
         best_pick = {"name": best[0], **best[1]} if best else None
 
