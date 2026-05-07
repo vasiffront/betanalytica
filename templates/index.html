@@ -100,7 +100,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .bw-edit .fc{width:130px;padding:5px 10px!important;font-size:13px!important}
 
 /* ── Match Card ── */
-.mcard{background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;transition:transform .2s,box-shadow .2s;animation:fadeUp .3s ease}
+.mcard{background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;transition:transform .2s,box-shadow .2s}
+.mcard.new-card{animation:slideIn .35s cubic-bezier(.25,.46,.45,.94)}
 .mcard:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
 .mcard.ga{border-left:3px solid #2ea043}
 .mcard.gb{border-left:3px solid #1f6feb}
@@ -180,9 +181,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:768px){.g3{grid-template-columns:repeat(2,1fr)}.g4{grid-template-columns:repeat(2,1fr)}.wrap{padding:12px 8px}.tstats{grid-template-columns:repeat(2,1fr)}}
 /* ── Tracker filters ── */
-.tf-bar{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+.tf-bar{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;align-items:center;position:sticky;top:0;z-index:20;background:var(--bg);padding:6px 0 8px;margin-top:-2px}
 .tf-btn{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:11px;font-weight:600;padding:4px 9px;cursor:pointer;transition:all .15s;white-space:nowrap}
 .tf-btn:hover{border-color:var(--border2);color:var(--text)}
 .tf-btn.act{background:rgba(88,166,255,.15);border-color:rgba(88,166,255,.4);color:var(--blue)}
@@ -204,6 +206,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .fb-match:hover{background:rgba(88,166,255,.07)}
 .fb-match:last-child{border-bottom:none}
 .fb-match.fb-loading{opacity:.55;pointer-events:none}
+.fb-match.fb-live{background:rgba(63,185,80,.04);border-left:2px solid rgba(63,185,80,.5)}
 /* ── Value badge in today list ── */
 .val-badge{display:inline-block;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;vertical-align:middle;margin-left:5px}
 .val-badge.vA{background:rgba(63,185,80,.2);color:var(--green);border:1px solid rgba(63,185,80,.35)}
@@ -354,27 +357,36 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <input id="ox"  class="fc" type="number" inputmode="decimal" step="0.01" placeholder="X">
       <input id="oa"  class="fc" type="number" inputmode="decimal" step="0.01" placeholder="П2">
     </div>
-    <label class="flabel" style="margin-bottom:4px">Двойной шанс</label>
-    <div class="g2 mb-2">
-      <input id="o1x" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="1X">
-      <input id="ox2" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="X2">
+    <div style="margin-bottom:8px">
+      <button type="button" id="extra-odds-toggle" onclick="toggleExtraOdds()"
+        style="background:none;border:none;padding:0;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;text-transform:uppercase;letter-spacing:.5px">
+        <i class="fa-solid fa-chevron-right" id="extra-odds-chev" style="font-size:9px;transition:transform .2s"></i>
+        Дополнительные коэффициенты
+      </button>
     </div>
-    <label class="flabel" style="margin-bottom:4px">Тотал голов</label>
-    <div class="g4 mb-2">
-      <input id="otb"   class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТБ2.5">
-      <input id="otm"   class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТМ2.5">
-      <input id="otb35" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТБ3.5">
-      <input id="otm35" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТМ3.5">
-    </div>
-    <label class="flabel" style="margin-bottom:4px">Обе забьют</label>
-    <div class="g2 mb-2">
-      <input id="ob_yes" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ОЗ Да">
-      <input id="ob_no"  class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ОЗ Нет">
-    </div>
-    <label class="flabel" style="margin-bottom:4px">Азиатский гандикап</label>
-    <div class="g2 mb-3">
-      <input id="oah_m15" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ФХ −1.5">
-      <input id="oah_p15" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ФГ +1.5">
+    <div id="extra-odds-body" style="display:none">
+      <label class="flabel" style="margin-bottom:4px">Двойной шанс</label>
+      <div class="g2 mb-2">
+        <input id="o1x" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="1X">
+        <input id="ox2" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="X2">
+      </div>
+      <label class="flabel" style="margin-bottom:4px">Тотал голов</label>
+      <div class="g4 mb-2">
+        <input id="otb"   class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТБ2.5">
+        <input id="otm"   class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТМ2.5">
+        <input id="otb35" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТБ3.5">
+        <input id="otm35" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТМ3.5">
+      </div>
+      <label class="flabel" style="margin-bottom:4px">Обе забьют</label>
+      <div class="g2 mb-2">
+        <input id="ob_yes" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ОЗ Да">
+        <input id="ob_no"  class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ОЗ Нет">
+      </div>
+      <label class="flabel" style="margin-bottom:4px">Азиатский гандикап</label>
+      <div class="g2 mb-2">
+        <input id="oah_m15" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ФХ −1.5">
+        <input id="oah_p15" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ФГ +1.5">
+      </div>
     </div>
 
     <div class="g3" style="gap:7px">
@@ -934,7 +946,7 @@ function applyBalance() {
 const grHtml = g => `<span class="gr gr-${g}">${g}</span>`;
 
 // ══ Match card ════════════════════════════════════════════════════════════════
-function matchCardHtml(m) {
+function matchCardHtml(m, isNew=false) {
   const bg   = m.best ? m.best.grade : 'D';
   const xMax = Math.max(m.lh, m.la, 1.5);
   const bw   = v => Math.round(v / xMax * 68);
@@ -981,7 +993,7 @@ function matchCardHtml(m) {
 
   const mid = m.id;
   return `
-  <div class="mcard g${bg}">
+  <div class="mcard g${bg.toLowerCase()}${isNew ? ' new-card' : ''}">
     <div class="mcard-head">
       <div class="teams"><span>${m.home}</span><span class="vs">VS</span><span>${m.away}</span></div>
       <div class="mcard-meta">
@@ -1017,7 +1029,8 @@ function renderMatches() {
   if (sb) sb.style.display = 'flex';
   let sorted = matches.slice().reverse();
   if (matchSort === 'grade') sorted.sort((a, b) => (GRADE_ORDER[a.best?.grade]??4) - (GRADE_ORDER[b.best?.grade]??4));
-  $('saved-matches').innerHTML = sorted.map(matchCardHtml).join('');
+  const newestId = matches[matches.length - 1]?.id;
+  $('saved-matches').innerHTML = sorted.map(m => matchCardHtml(m, m.id === newestId)).join('');
 }
 
 // ══ Express ═══════════════════════════════════════════════════════════════════
@@ -1410,11 +1423,9 @@ function renderTracker() {
     let resultBadge, profitLine = '';
     if (t.result === 'W') {
       const pr = Math.round(t.stake * (t.odd - 1));
-      resultBadge = `<span class="result-badge rb-win"><i class="fa-solid fa-check"></i> ВЫИГРАЛ</span>`;
-      profitLine  = `<span style="color:var(--green);font-weight:700">+${fmt(pr)} ₽</span>`;
+      resultBadge = `<span class="result-badge rb-win"><i class="fa-solid fa-check"></i> +${fmt(pr)} ₽</span>`;
     } else if (t.result === 'L') {
-      resultBadge = `<span class="result-badge rb-lose"><i class="fa-solid fa-xmark"></i> ПРОИГРАЛ</span>`;
-      profitLine  = `<span style="color:var(--red);font-weight:700">−${fmt(t.stake)} ₽</span>`;
+      resultBadge = `<span class="result-badge rb-lose"><i class="fa-solid fa-xmark"></i> −${fmt(t.stake)} ₽</span>`;
     } else {
       resultBadge = `<span style="color:var(--yellow);font-size:12px"><i class="fa-solid fa-clock"></i> Ожидание</span>`;
     }
@@ -1451,7 +1462,6 @@ function renderTracker() {
           &nbsp;·&nbsp; Вер: ${t.prob}%
           &nbsp;·&nbsp; EV: <b style="color:var(--green)">${t.ev > 0 ? '+' : ''}${t.ev}%</b>
           &nbsp;·&nbsp; Ставка: <b style="color:var(--purple)">${fmt(t.stake)} ₽</b>
-          ${profitLine ? '&nbsp;·&nbsp;' + profitLine : ''}
           <br><span style="font-size:10px">${t.at}</span>
         </div>
         <div class="tbet-actions">${actBtns}</div>
@@ -1474,7 +1484,6 @@ function renderTracker() {
         &nbsp;·&nbsp; Вер: ${t.prob}%
         &nbsp;·&nbsp; Kelly: ${t.kelly}%
         &nbsp;·&nbsp; Ставка: <b style="color:var(--purple)">${fmt(t.stake)} ₽</b>
-        ${profitLine ? '&nbsp;·&nbsp;' + profitLine : ''}
         <br><span style="font-size:10px">${t.at}</span>
       </div>
       <div class="tbet-actions">${actBtns}</div>
@@ -1563,6 +1572,21 @@ function addMatch() {
     btn.disabled = false;
     btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-chart"></i> Анализировать';
   });
+}
+
+// ══ Extra odds toggle ════════════════════════════════════════════════════════
+function toggleExtraOdds(forceOpen) {
+  const body = $('extra-odds-body');
+  const chev = $('extra-odds-chev');
+  const open = forceOpen !== undefined ? forceOpen : body.style.display === 'none';
+  body.style.display      = open ? 'block' : 'none';
+  chev.style.transform    = open ? 'rotate(90deg)' : '';
+}
+
+function autoExpandExtraOdds() {
+  const extraIds = ['o1x','ox2','otb','otm','otb35','otm35','ob_yes','ob_no','oah_m15','oah_p15'];
+  const hasValue = extraIds.some(id => $(id)?.value);
+  if (hasValue) toggleExtraOdds(true);
 }
 
 // ══ Util buttons ══════════════════════════════════════════════════════════════
@@ -1743,11 +1767,18 @@ function renderFbList() {
   }
   $('fb-list').innerHTML = list.map(m => {
     const i = fbMatches.indexOf(m);
+    const live = m.state === 'in' && m.home_score != null;
+    const scorePart = live
+      ? `<span style="color:var(--green);font-weight:800;font-size:12px;margin-left:7px">${m.home_score}:${m.away_score} <span style="font-size:9px;color:var(--green)">●</span></span>`
+      : '';
+    const timePart = live
+      ? `<span style="font-size:11px;color:var(--green);font-weight:700">LIVE</span>`
+      : `<span style="font-size:11px;color:var(--blue);font-weight:700">${m.time}</span>`;
     return `
-    <div class="fb-match" id="fbm-${i}" onclick="selectFbMatch(${i})">
+    <div class="fb-match${live ? ' fb-live' : ''}" id="fbm-${i}" onclick="selectFbMatch(${i})">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-weight:600;font-size:12px">${m.home} — ${m.away}</span>
-        <span style="font-size:11px;color:var(--blue);font-weight:700">${m.time}</span>
+        <span style="font-weight:600;font-size:12px">${m.home} — ${m.away}${scorePart}</span>
+        ${timePart}
       </div>
       <div style="font-size:10px;color:var(--muted);margin-top:2px">${m.league || ''}</div>
     </div>`;
@@ -2078,6 +2109,7 @@ async function selectFbMatch(idx) {
     lastFbMatchTime = m.time    || null;
     lastFbLeague    = m.league  || null;
     lastFbH2h       = s.h2h_n > 0 ? { lh: s.h2h_lh, la: s.h2h_la, n: s.h2h_n } : null;
+    autoExpandExtraOdds();
 
     const hasOdds = od.oh && od.ox && od.oa;
     if (hasOdds) {
@@ -2150,6 +2182,13 @@ document.addEventListener('keydown', e => {
 });
 
 $('ng').addEventListener('change', saveState);
+
+// Auto-focus П1→X→П2 on Enter within odds inputs
+[['oh','ox'],['ox','oa'],['oa','otb']].forEach(([from, to]) => {
+  $(from).addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); toggleExtraOdds(true); $(to).focus(); }
+  });
+});
 
 initFromStorage(); // loadTodayMatches called inside with setTimeout
 </script>

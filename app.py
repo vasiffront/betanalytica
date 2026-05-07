@@ -684,18 +684,22 @@ def football_today():
                 if not lg_name:
                     notes = comp.get('notes') or []
                     lg_name = (notes[0].get('headline') or '') if notes else ''
+                ev_state = _g(comp, 'status', 'type', 'state') or 'pre'
                 matches.append({
-                    'home':      (home.get('team') or {}).get('displayName', ''),
-                    'away':      (away.get('team') or {}).get('displayName', ''),
-                    'home_id':   (home.get('team') or {}).get('id', ''),
-                    'away_id':   (away.get('team') or {}).get('id', ''),
-                    'home_form': home.get('form') or '',
-                    'away_form': away.get('form') or '',
-                    'league':    lg_name,
-                    'country':   '',
-                    'time':      t,
-                    'espn_id':   ev.get('id', ''),
-                    'odds':      _parse_espn_odds(comp),
+                    'home':       (home.get('team') or {}).get('displayName', ''),
+                    'away':       (away.get('team') or {}).get('displayName', ''),
+                    'home_id':    (home.get('team') or {}).get('id', ''),
+                    'away_id':    (away.get('team') or {}).get('id', ''),
+                    'home_form':  home.get('form') or '',
+                    'away_form':  away.get('form') or '',
+                    'league':     lg_name,
+                    'country':    '',
+                    'time':       t,
+                    'espn_id':    ev.get('id', ''),
+                    'state':      ev_state,
+                    'home_score': home.get('score') if ev_state == 'in' else None,
+                    'away_score': away.get('score') if ev_state == 'in' else None,
+                    'odds':       _parse_espn_odds(comp),
                 })
             except Exception:
                 continue
