@@ -195,16 +195,24 @@ def calculate():
         def o(key, default=2.0):
             val = odds.get(key)
             return max(float(val or default), 1.01)
+        def o_opt(key):
+            val = odds.get(key)
+            return max(float(val), 1.01) if val else None
 
-        oh, ox, oa        = o("oh"), o("ox"), o("oa")
-        o1x, ox2          = o("o1x", 1.5), o("ox2", 1.5)
-        otb, otm          = o("otb", 1.8), o("otm", 1.8)
-        otb35, otm35      = o("otb35", 2.1), o("otm35", 1.65)
-        ob_yes, ob_no     = o("ob_yes", 1.7), o("ob_no", 1.9)
-        oah_m15_raw = odds.get("oah_m15")
-        oah_p15_raw = odds.get("oah_p15")
-        oah_m15 = max(float(oah_m15_raw), 1.01) if oah_m15_raw else None
-        oah_p15 = max(float(oah_p15_raw), 1.01) if oah_p15_raw else None
+        oh, ox, oa = o("oh"), o("ox"), o("oa")
+        o1x, ox2   = o("o1x", 1.5), o("ox2", 1.5)
+        # Totals and BTTS are optional — only analysed when real bookmaker odds are provided.
+        # Using defaults here creates phantom value because the Poisson model naturally
+        # predicts ТМ/ОЗ-Нет for average/below-average teams, and inflated defaults
+        # (1.8, 1.65, 1.9) imply a market probability well below the model's estimate.
+        otb    = o_opt("otb")
+        otm    = o_opt("otm")
+        otb35  = o_opt("otb35")
+        otm35  = o_opt("otm35")
+        ob_yes = o_opt("ob_yes")
+        ob_no  = o_opt("ob_no")
+        oah_m15 = o_opt("oah_m15")
+        oah_p15 = o_opt("oah_p15")
 
         lh, la = calculate_lambdas(hs, hc, as_, ac, ng)
         lh = form_adjustment(lh, fh)
@@ -216,24 +224,28 @@ def calculate():
         def mp(odd): return fair_prob(odd, vig)
 
         markets = [
-            ("П1",     p1,                                                      oh,     mp(oh)),
-            ("X",      px,                                                      ox,     mp(ox)),
-            ("П2",     p2,                                                      oa,     mp(oa)),
-            ("1X",     p1 + px,                                                 o1x,    mp(o1x)),
-            ("X2",     px + p2,                                                 ox2,    mp(ox2)),
-            ("ТБ2.5",  sum(p for (h,a),p in probs.items() if h+a >= 3),        otb,    mp(otb)),
-            ("ТМ2.5",  sum(p for (h,a),p in probs.items() if h+a <  3),        otm,    mp(otm)),
-            ("ТБ3.5",  sum(p for (h,a),p in probs.items() if h+a >= 4),        otb35,  mp(otb35)),
-            ("ТМ3.5",  sum(p for (h,a),p in probs.items() if h+a <  4),        otm35,  mp(otm35)),
-            ("ОЗ Да",  sum(p for (h,a),p in probs.items() if h>0 and a>0),     ob_yes, mp(ob_yes)),
-            ("ОЗ Нет", sum(p for (h,a),p in probs.items() if h==0 or  a==0),   ob_no,  mp(ob_no)),
+            ("П1",  p1,       oh,  mp(oh)),
+            ("X",   px,       ox,  mp(ox)),
+            ("П2",  p2,       oa,  mp(oa)),
+            ("1X",  p1 + px,  o1x, mp(o1x)),
+            ("X2",  px + p2,  ox2, mp(ox2)),
         ]
+        p_tb25 = sum(p for (h,a),p in probs.items() if h+a >= 3)
+        p_tm25 = 1.0 - p_tb25
+        p_tb35 = sum(p for (h,a),p in probs.items() if h+a >= 4)
+        p_tm35 = 1.0 - p_tb35
+        p_btts_yes = sum(p for (h,a),p in probs.items() if h>0 and a>0)
+        p_btts_no  = 1.0 - p_btts_yes
+        if otb:    markets.append(("ТБ2.5",  p_tb25,     otb,    mp(otb)))
+        if otm:    markets.append(("ТМ2.5",  p_tm25,     otm,    mp(otm)))
+        if otb35:  markets.append(("ТБ3.5",  p_tb35,     otb35,  mp(otb35)))
+        if otm35:  markets.append(("ТМ3.5",  p_tm35,     otm35,  mp(otm35)))
+        if ob_yes: markets.append(("ОЗ Да",  p_btts_yes, ob_yes, mp(ob_yes)))
+        if ob_no:  markets.append(("ОЗ Нет", p_btts_no,  ob_no,  mp(ob_no)))
         if oah_m15:
-            p_ah_m15 = sum(p for (h,a),p in probs.items() if h - a >= 2)
-            markets.append(("ФХ -1.5", p_ah_m15, oah_m15, mp(oah_m15)))
+            markets.append(("ФХ -1.5", sum(p for (h,a),p in probs.items() if h-a >= 2), oah_m15, mp(oah_m15)))
         if oah_p15:
-            p_ah_p15 = sum(p for (h,a),p in probs.items() if h - a <= 1)
-            markets.append(("ФГ +1.5", p_ah_p15, oah_p15, mp(oah_p15)))
+            markets.append(("ФГ +1.5", sum(p for (h,a),p in probs.items() if h-a <= 1), oah_p15, mp(oah_p15)))
 
         bets = {}
         for name, model_p, odd, market_p in markets:
@@ -563,25 +575,10 @@ def football_stats():
         hs, hc, hg = get_team_season(home_id)
         as_, ac, ag = get_team_season(away_id)
         ng = max(hg, ag, 1)
-        lh, la = calculate_lambdas(hs, hc, as_, ac, ng)
-        lh, la = home_away_bias(lh, la)
-        btts_p = (1 - math.exp(-lh)) * (1 - math.exp(-la))
-        btts_n = 1 - btts_p
-        # Only return BTTS odds when both are within a plausible market range (1.1–6.0).
-        # Extreme values (e.g. 20/1.05) mean the model has poor data and are misleading.
-        _MAX_BTTS = 6.0
-        ob_yes = round(1 / btts_p, 2) if btts_p > 0.01 else None
-        ob_no  = round(1 / btts_n, 2) if btts_n > 0.01 else None
-        if ob_yes and ob_yes > _MAX_BTTS:
-            ob_yes = ob_no = None
-        if ob_no and ob_no > _MAX_BTTS:
-            ob_yes = ob_no = None
         return jsonify({
             'hs': hs, 'hc': hc, 'as': as_, 'ac': ac,
             'fh': _form_pts(home_form), 'fa': _form_pts(away_form),
             'ng': ng,
-            'ob_yes': ob_yes,
-            'ob_no':  ob_no,
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
