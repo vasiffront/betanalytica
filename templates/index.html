@@ -204,6 +204,17 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .fb-match:hover{background:rgba(88,166,255,.07)}
 .fb-match:last-child{border-bottom:none}
 .fb-match.fb-loading{opacity:.55;pointer-events:none}
+/* ── Value badge in today list ── */
+.val-badge{display:inline-block;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;vertical-align:middle;margin-left:5px}
+.val-badge.vA{background:rgba(63,185,80,.2);color:var(--green);border:1px solid rgba(63,185,80,.35)}
+.val-badge.vB{background:rgba(31,111,235,.18);color:var(--blue);border:1px solid rgba(31,111,235,.35)}
+.val-badge.vC{background:rgba(158,106,3,.18);color:var(--yellow);border:1px solid rgba(158,106,3,.35)}
+/* ── Telegram modal ── */
+#tg-modal{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;padding-top:8vh}
+#tg-modal.open{display:flex}
+#tg-box{background:var(--bg-card);border:1px solid var(--border2);border-radius:var(--radius);padding:22px;width:100%;max-width:420px}
+/* ── Score pill ── */
+.score-pill{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.07);color:var(--text);margin-left:6px}
 </style>
 </head>
 <body>
@@ -218,11 +229,51 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="bal-pill" onclick="showTab('tracker')" title="Перейти к трекеру" id="hdr-bal">
         <i class="fa-solid fa-wallet" style="font-size:10px;margin-right:4px;color:var(--green)"></i><span id="hbal-txt">Нет баланса</span>
       </div>
+      <button id="tg-btn" onclick="openTgModal()" title="Telegram уведомления" style="background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:20px;padding:3px 11px;font-size:11px;color:var(--muted);cursor:pointer;transition:all .2s">
+        <i class="fa-brands fa-telegram" id="tg-icon"></i>
+      </button>
     </div>
   </div>
 </header>
 
 <div id="toast"></div>
+
+<!-- ══ Telegram Settings Modal ══════════════════════════════════════════════ -->
+<div id="tg-modal" onclick="if(event.target===this)closeTgModal()">
+  <div id="tg-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <b style="font-size:14px"><i class="fa-brands fa-telegram" style="color:#229ed9;margin-right:7px"></i>Telegram уведомления</b>
+      <button onclick="closeTgModal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+      Создайте бота через <b style="color:var(--text)">@BotFather</b>, получите токен.<br>
+      Chat ID: напишите боту <code style="color:var(--blue)">/start</code>, затем откройте<br>
+      <code style="color:var(--blue)">api.telegram.org/bot{TOKEN}/getUpdates</code>
+    </div>
+    <div style="margin-bottom:10px">
+      <label class="flabel">Bot Token</label>
+      <input id="tg-token" class="fc" type="password" placeholder="1234567890:ABCdef…" autocomplete="off">
+    </div>
+    <div style="margin-bottom:10px">
+      <label class="flabel">Chat ID</label>
+      <input id="tg-chat" class="fc" placeholder="-100123456789 или @username">
+    </div>
+    <div style="margin-bottom:16px">
+      <label class="flabel">Минимальный грейд для уведомления</label>
+      <select id="tg-grade" class="fc">
+        <option value="A">A — только лучшие</option>
+        <option value="B">B — хорошие и выше</option>
+        <option value="C">C — умеренные и выше</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:7px">
+      <button class="btn-green" onclick="saveTgSettings()" style="flex:1"><i class="fa-solid fa-check"></i> Сохранить</button>
+      <button class="btn-outline" onclick="testTelegram()"><i class="fa-solid fa-paper-plane"></i> Тест</button>
+      <button class="btn-red" onclick="clearTgSettings()" title="Удалить настройки"><i class="fa-solid fa-trash"></i></button>
+    </div>
+    <div id="tg-status" style="margin-top:10px;font-size:12px;min-height:18px"></div>
+  </div>
+</div>
 
 <div class="wrap">
 <div class="row g-4">
@@ -292,9 +343,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <input id="otm35" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТМ3.5">
     </div>
     <label class="flabel" style="margin-bottom:4px">Обе забьют</label>
-    <div class="g2 mb-3">
+    <div class="g2 mb-2">
       <input id="ob_yes" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ОЗ Да">
       <input id="ob_no"  class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ОЗ Нет">
+    </div>
+    <label class="flabel" style="margin-bottom:4px">Азиатский гандикап</label>
+    <div class="g2 mb-3">
+      <input id="oah_m15" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ФХ −1.5">
+      <input id="oah_p15" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ФГ +1.5">
     </div>
 
     <div class="g3" style="gap:7px">
@@ -383,6 +439,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="tsc"><label>Прибыль</label><div class="tv" id="ts-profit">—</div></div>
     </div>
 
+    <!-- Check results button -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+      <button class="btn-sm btn-outline" id="btn-check-res" onclick="checkResults()" style="display:none;font-size:11px">
+        <i class="fa-solid fa-rotate" id="cr-spin"></i> Проверить результаты
+      </button>
+    </div>
+
     <!-- Filter bar -->
     <div class="tf-bar" id="tf-bar" style="display:none">
       <button class="tf-btn act" id="tf-all"     onclick="setTFilter('result','all')">Все</button>
@@ -437,6 +500,14 @@ const LS_NG     = 'ba_ng';
 const LS_CUR    = 'ba_balance_cur';
 const LS_START  = 'ba_balance_start';
 const LS_KELLY  = 'ba_kelly_base';
+const LS_TG     = 'ba_telegram';
+
+let tgToken    = '';
+let tgChatId   = '';
+let tgMinGrade = 'A';
+let fbAnalyzed = {}; // espn_id → grade  (for value badges in today list)
+let scoreCache = {}; // espn_id → {state, home_score, away_score}
+let lastFbEspnId = null; // set when user selects a match from today panel
 
 // ══ LS helpers ═══════════════════════════════════════════════════════════════
 const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
@@ -449,6 +520,96 @@ function saveState() {
   lsSet(LS_CUR,   currentBalance);
   lsSet(LS_START, startBalance);
   lsSet(LS_KELLY, kellyBase);
+}
+
+// ══ Telegram ═════════════════════════════════════════════════════════════════
+function loadTgSettings() {
+  const s = lsGet(LS_TG);
+  if (!s) return;
+  tgToken    = s.token    || '';
+  tgChatId   = s.chatId   || '';
+  tgMinGrade = s.minGrade || 'A';
+  updateTgBtn();
+}
+
+function updateTgBtn() {
+  const ic = $('tg-icon');
+  if (!ic) return;
+  const active = tgToken && tgChatId;
+  ic.style.color = active ? '#229ed9' : '';
+  $('tg-btn').style.borderColor = active ? 'rgba(34,158,217,.4)' : '';
+}
+
+function openTgModal() {
+  $('tg-token').value = tgToken;
+  $('tg-chat').value  = tgChatId;
+  $('tg-grade').value = tgMinGrade;
+  $('tg-status').textContent = '';
+  $('tg-modal').classList.add('open');
+}
+
+function closeTgModal() { $('tg-modal').classList.remove('open'); }
+
+function saveTgSettings() {
+  tgToken    = $('tg-token').value.trim();
+  tgChatId   = $('tg-chat').value.trim();
+  tgMinGrade = $('tg-grade').value;
+  lsSet(LS_TG, {token: tgToken, chatId: tgChatId, minGrade: tgMinGrade});
+  updateTgBtn();
+  $('tg-status').innerHTML = '<span style="color:var(--green)">Сохранено</span>';
+  setTimeout(closeTgModal, 800);
+}
+
+function clearTgSettings() {
+  tgToken = tgChatId = '';
+  tgMinGrade = 'A';
+  localStorage.removeItem(LS_TG);
+  $('tg-token').value = ''; $('tg-chat').value = '';
+  updateTgBtn();
+  $('tg-status').innerHTML = '<span style="color:var(--muted)">Настройки удалены</span>';
+}
+
+async function testTelegram() {
+  if (!tgToken || !tgChatId) {
+    $('tg-status').innerHTML = '<span style="color:var(--red)">Заполните токен и Chat ID</span>';
+    return;
+  }
+  $('tg-status').innerHTML = '<span class="spinner"></span>';
+  const ok = await sendTelegram('✅ BetAnalytica подключён! Уведомления работают.');
+  $('tg-status').innerHTML = ok
+    ? '<span style="color:var(--green)">Тестовое сообщение отправлено</span>'
+    : '<span style="color:var(--red)">Ошибка — проверьте токен и Chat ID</span>';
+}
+
+async function sendTelegram(text) {
+  if (!tgToken || !tgChatId) return false;
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({chat_id: tgChatId, text, parse_mode: 'HTML'})
+    });
+    return r.ok;
+  } catch { return false; }
+}
+
+const GRADE_ORDER = {A:0, B:1, C:2, D:3};
+
+function shouldNotify(grade) {
+  if (!tgToken || !tgChatId) return false;
+  return (GRADE_ORDER[grade] ?? 3) <= (GRADE_ORDER[tgMinGrade] ?? 0);
+}
+
+function buildTgMessage(m) {
+  if (!m.best) return null;
+  const b = m.best;
+  const stake = calcStake(b.kelly);
+  let msg = `⚽ <b>${m.home} — ${m.away}</b>\n`;
+  msg += `🎯 [${b.grade}] <b>${b.name}</b> @ <b>${b.odd}</b>\n`;
+  msg += `📊 EV: +${b.ev}% | Kelly: ${b.kelly}% | Conf: ${b.conf}\n`;
+  if (stake) msg += `💰 Ставка: ${fmt(stake)} ₽\n`;
+  msg += `\nxG: ${m.lh} vs ${m.la} | Маржа: ${m.vig}%`;
+  return msg;
 }
 
 // ══ Toast ════════════════════════════════════════════════════════════════════
@@ -845,10 +1006,12 @@ function trackBet(info) {
 
   const stake = calcStake(info.kelly);
   currentBalance = Math.max(currentBalance - stake, 0);
+  const srcMatch = matches.find(x => x.id === info.mid);
   const entry = {
     id:         Date.now() + Math.random(),
     ts:         Date.now(),
     mid:        info.mid,
+    espn_id:    srcMatch ? (srcMatch.espn_id || null) : null,
     label:      info.label,
     name:       info.name,
     odd:        info.odd,
@@ -1014,7 +1177,7 @@ function editMatch(id) {
   $('fa').value  = inp.fa  ?? '';
   $('ng').value  = inp.ng  ?? '5';
   const od = inp.odds || {};
-  ['oh','ox','oa','o1x','ox2','otb','otm','otb35','otm35','ob_yes','ob_no'].forEach(k => {
+  ['oh','ox','oa','o1x','ox2','otb','otm','otb35','otm35','ob_yes','ob_no','oah_m15','oah_p15'].forEach(k => {
     $(k) && ($(k).value = od[k] || '');
   });
   showTab('matches');
@@ -1059,6 +1222,8 @@ function renderTracker() {
   $('ts-profit').style.color = profit >= 0 ? 'var(--green)' : 'var(--red)';
 
   renderMarketStats();
+
+  updateCheckBtn();
 
   if (!tracker.length) {
     $('tf-bar').style.display = 'none';
@@ -1138,10 +1303,14 @@ function renderTracker() {
     }
 
     // ── Одиночная ставка ──
+    const sc = t.espn_id && scoreCache[t.espn_id];
+    const scorePill = sc && sc.home_score != null
+      ? `<span class="score-pill">${sc.home_score}:${sc.away_score}${sc.state === 'in' ? ' ●' : ''}</span>`
+      : '';
     return `
     <div class="tbet ${cls}">
       <div class="tbet-top">
-        <div class="tbet-match">${grHtml(t.grade)} ${t.label}</div>
+        <div class="tbet-match">${grHtml(t.grade)} ${t.label}${scorePill}</div>
         ${resultBadge}
       </div>
       <div class="tbet-meta">
@@ -1168,6 +1337,7 @@ function addMatch() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Анализ...';
 
+  const _pendingEspnId = lastFbEspnId; // capture before async
   const payload = {
     home_team: $('home_team').value.trim(), away_team: $('away_team').value.trim(),
     hs: $('hs').value, hc: $('hc_i').value, as: $('as_i').value, ac: $('ac').value,
@@ -1177,7 +1347,8 @@ function addMatch() {
       o1x: $('o1x').value, ox2: $('ox2').value,
       otb: $('otb').value, otm: $('otm').value,
       otb35: $('otb35').value, otm35: $('otm35').value,
-      ob_yes: $('ob_yes').value, ob_no: $('ob_no').value
+      ob_yes: $('ob_yes').value, ob_no: $('ob_no').value,
+      oah_m15: $('oah_m15').value, oah_p15: $('oah_p15').value
     }
   };
 
@@ -1193,13 +1364,29 @@ function addMatch() {
     matches.forEach(m => { if (m._inputs) prevInputs[m.id] = m._inputs; });
     matches = data.saved_matches.map(m => ({ ...m, _inputs: prevInputs[m.id] || m._inputs }));
     const newMatch = matches.find(m => m.id === data.match.id);
-    if (newMatch) newMatch._inputs = { ...payload };
+    if (newMatch) {
+      newMatch._inputs = { ...payload };
+      if (_pendingEspnId) newMatch.espn_id = _pendingEspnId;
+    }
+    // Track value badge for today panel
+    if (_pendingEspnId && data.match.best) {
+      fbAnalyzed[_pendingEspnId] = data.match.best.grade;
+      refreshFbBadges();
+    }
+    lastFbEspnId = null;
     saveState();
     renderMatches();
     updateHeader();
-    toast(`${payload.home_team} — ${payload.away_team} добавлен`);
+    const bestInfo = data.match.best
+      ? ` — [${data.match.best.grade}] ${data.match.best.name} @ ${data.match.best.odd}`
+      : '';
+    toast(`${payload.home_team} — ${payload.away_team} добавлен${bestInfo}`);
     $('home_team').value = ''; $('away_team').value = '';
     if (matches.length >= 2) fetchExpress();
+    // Telegram notification
+    if (data.match.best && shouldNotify(data.match.best.grade)) {
+      sendTelegram(buildTgMessage(data.match));
+    }
   })
   .catch(() => toast('Ошибка сети', 'err'))
   .finally(() => {
@@ -1211,7 +1398,8 @@ function addMatch() {
 // ══ Util buttons ══════════════════════════════════════════════════════════════
 function clearFields() {
   ['home_team','away_team','hs','hc_i','as_i','ac','fh','fa',
-   'oh','ox','oa','o1x','ox2','otb','otm','otb35','otm35','ob_yes','ob_no'].forEach(id => $(id).value = '');
+   'oh','ox','oa','o1x','ox2','otb','otm','otb35','otm35','ob_yes','ob_no',
+   'oah_m15','oah_p15'].forEach(id => $(id).value = '');
   $('ng').value = '5';
   $('home_team').focus();
   toast('Поля формы очищены');
@@ -1244,6 +1432,60 @@ function copyBestPicks() {
     .catch(() => toast('Ошибка копирования', 'err'));
 }
 
+// ══ Check Results ═════════════════════════════════════════════════════════════
+async function checkResults() {
+  const pending = tracker.filter(t => t.result === null && t.espn_id);
+  if (!pending.length) { toast('Нет ожидающих ставок с ESPN ID', 'err'); return; }
+
+  const spin = $('cr-spin');
+  spin.classList.add('fa-spin');
+  $('btn-check-res').disabled = true;
+
+  try {
+    const ids = [...new Set(pending.map(t => t.espn_id))];
+    const r = await fetch('/check_results', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({event_ids: ids})
+    });
+    const data = await r.json();
+    let found = 0;
+    for (const [eid, info] of Object.entries(data)) {
+      if (info.home_score != null && info.away_score != null) {
+        scoreCache[eid] = info;
+        found++;
+      }
+    }
+    renderTracker();
+    toast(found ? `Счёт обновлён для ${found} матч(ей)` : 'Матчи ещё не завершены');
+  } catch {
+    toast('Ошибка проверки результатов', 'err');
+  } finally {
+    spin.classList.remove('fa-spin');
+    $('btn-check-res').disabled = false;
+  }
+}
+
+function updateCheckBtn() {
+  const btn = $('btn-check-res');
+  if (!btn) return;
+  const hasPending = tracker.some(t => t.result === null && t.espn_id);
+  btn.style.display = hasPending ? '' : 'none';
+}
+
+// ══ Value badges in Today panel ══════════════════════════════════════════════
+function refreshFbBadges() {
+  fbMatches.forEach((m, i) => {
+    if (!m.espn_id || !fbAnalyzed[m.espn_id]) return;
+    const el = $(`fbm-${i}`);
+    if (!el) return;
+    const grade = fbAnalyzed[m.espn_id];
+    if (grade === 'D') return;
+    const nameEl = el.querySelector('span:first-child');
+    if (!nameEl || nameEl.querySelector('.val-badge')) return;
+    nameEl.insertAdjacentHTML('beforeend', `<span class="val-badge v${grade}">${grade}</span>`);
+  });
+}
+
 // ══ Init from LocalStorage ════════════════════════════════════════════════════
 function initFromStorage() {
   const savedM   = lsGet(LS_M);
@@ -1269,6 +1511,7 @@ function initFromStorage() {
     renderMatches();
   }
 
+  loadTgSettings();
   renderTracker();
   updateHeader();
   setTimeout(loadTodayMatches, 400);
@@ -1344,25 +1587,32 @@ async function selectFbMatch(idx) {
     $('ng').value   = s.ng  ?? 5;
 
     const od = m.odds || {};
-    if (od.oh)    $('oh').value    = od.oh;
-    if (od.ox)    $('ox').value    = od.ox;
-    if (od.oa)    $('oa').value    = od.oa;
-    if (od.otb)   $('otb').value   = od.otb;
-    if (od.otm)   $('otm').value   = od.otm;
-    if (od.o1x)   $('o1x').value   = od.o1x;
-    if (od.ox2)   $('ox2').value   = od.ox2;
-    if (od.otb35) $('otb35').value = od.otb35;
-    if (od.otm35) $('otm35').value = od.otm35;
-    if (s.ob_yes) $('ob_yes').value = s.ob_yes;
-    if (s.ob_no)  $('ob_no').value  = s.ob_no;
+    $('oh').value    = od.oh    || '';
+    $('ox').value    = od.ox    || '';
+    $('oa').value    = od.oa    || '';
+    $('otb').value   = od.otb   || '';
+    $('otm').value   = od.otm   || '';
+    $('o1x').value   = od.o1x   || '';
+    $('ox2').value   = od.ox2   || '';
+    $('otb35').value = od.otb35 || '';
+    $('otm35').value = od.otm35 || '';
+    $('ob_yes').value = s.ob_yes || '';
+    $('ob_no').value  = s.ob_no  || '';
+    $('oah_m15').value = '';
+    $('oah_p15').value = '';
+
+    lastFbEspnId = m.espn_id || null;
 
     const hasOdds = od.oh && od.ox && od.oa;
-    toast(hasOdds
-      ? 'Статистика и коэффициенты загружены — нажмите Анализировать'
-      : 'Статистика загружена — введите коэффициенты и нажмите Анализировать'
-    );
-    $('oh').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    if (!hasOdds) $('oh').focus();
+    if (hasOdds) {
+      // All data present — auto-analyze after brief pause so fill is visible
+      toast('Данные загружены — автоматический анализ…');
+      setTimeout(() => addMatch(), 350);
+    } else {
+      toast('Статистика загружена — введите коэффициенты и нажмите Анализировать');
+      $('oh').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      $('oh').focus();
+    }
   } catch {
     toast('Ошибка загрузки статистики', 'err');
   } finally {

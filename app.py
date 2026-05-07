@@ -201,6 +201,10 @@ def calculate():
         otb, otm          = o("otb", 1.8), o("otm", 1.8)
         otb35, otm35      = o("otb35", 2.1), o("otm35", 1.65)
         ob_yes, ob_no     = o("ob_yes", 1.7), o("ob_no", 1.9)
+        oah_m15_raw = odds.get("oah_m15")
+        oah_p15_raw = odds.get("oah_p15")
+        oah_m15 = max(float(oah_m15_raw), 1.01) if oah_m15_raw else None
+        oah_p15 = max(float(oah_p15_raw), 1.01) if oah_p15_raw else None
 
         lh, la = calculate_lambdas(hs, hc, as_, ac, ng)
         lh = form_adjustment(lh, fh)
@@ -224,6 +228,12 @@ def calculate():
             ("ОЗ Да",  sum(p for (h,a),p in probs.items() if h>0 and a>0),     ob_yes, mp(ob_yes)),
             ("ОЗ Нет", sum(p for (h,a),p in probs.items() if h==0 or  a==0),   ob_no,  mp(ob_no)),
         ]
+        if oah_m15:
+            p_ah_m15 = sum(p for (h,a),p in probs.items() if h - a >= 2)
+            markets.append(("ФХ -1.5", p_ah_m15, oah_m15, mp(oah_m15)))
+        if oah_p15:
+            p_ah_p15 = sum(p for (h,a),p in probs.items() if h - a <= 1)
+            markets.append(("ФГ +1.5", p_ah_p15, oah_p15, mp(oah_p15)))
 
         bets = {}
         for name, model_p, odd, market_p in markets:
@@ -460,9 +470,11 @@ def _parse_espn_odds(comp):
 @app.route('/football_today')
 def football_today():
     today = date.today().isoformat()
-    with _sched_cache['_lock']:
-        if _sched_cache['date'] == today and _sched_cache['data']:
-            return jsonify(_sched_cache['data'])
+    force = request.args.get('force') == '1'
+    if not force:
+        with _sched_cache['_lock']:
+            if _sched_cache['date'] == today and _sched_cache['data']:
+                return jsonify(_sched_cache['data'])
     try:
         r = _req.get(f'{_ESPN}?dates={today.replace("-","")}&limit=200', timeout=10)
         r.raise_for_status()
@@ -494,6 +506,7 @@ def football_today():
                     'league':    '',
                     'country':   '',
                     'time':      t,
+                    'espn_id':   ev.get('id', ''),
                     'odds':      _parse_espn_odds(comp),
                 })
             except Exception:
@@ -546,15 +559,51 @@ def football_stats():
         lh, la = home_away_bias(lh, la)
         btts_p = (1 - math.exp(-lh)) * (1 - math.exp(-la))
         btts_n = 1 - btts_p
+        # Only return BTTS odds when both are within a plausible market range (1.1–6.0).
+        # Extreme values (e.g. 20/1.05) mean the model has poor data and are misleading.
+        _MAX_BTTS = 6.0
+        ob_yes = round(1 / btts_p, 2) if btts_p > 0.01 else None
+        ob_no  = round(1 / btts_n, 2) if btts_n > 0.01 else None
+        if ob_yes and ob_yes > _MAX_BTTS:
+            ob_yes = ob_no = None
+        if ob_no and ob_no > _MAX_BTTS:
+            ob_yes = ob_no = None
         return jsonify({
             'hs': hs, 'hc': hc, 'as': as_, 'ac': ac,
             'fh': _form_pts(home_form), 'fa': _form_pts(away_form),
             'ng': ng,
-            'ob_yes': round(1 / btts_p, 2) if btts_p > 0.01 else None,
-            'ob_no':  round(1 / btts_n, 2) if btts_n > 0.01 else None,
+            'ob_yes': ob_yes,
+            'ob_no':  ob_no,
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/check_results', methods=['POST'])
+def check_results():
+    event_ids = request.json.get('event_ids', [])
+    out = {}
+    for eid in event_ids:
+        try:
+            r = _req.get(
+                'https://site.api.espn.com/apis/site/v2/sports/soccer/all/summary',
+                params={'event': eid}, timeout=8
+            )
+            if r.status_code != 200:
+                continue
+            comp = ((r.json().get('header') or {}).get('competitions') or [{}])[0]
+            state = _g(comp, 'status', 'type', 'state')
+            cs = comp.get('competitors') or []
+            home = next((c for c in cs if c.get('homeAway') == 'home'), {})
+            away = next((c for c in cs if c.get('homeAway') == 'away'), {})
+            out[str(eid)] = {
+                'state':      state or 'unknown',
+                'home_score': home.get('score'),
+                'away_score': away.get('score'),
+            }
+        except Exception:
+            continue
+    return jsonify(out)
 
 
 if __name__ == "__main__":
