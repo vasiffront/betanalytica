@@ -508,6 +508,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <button class="tf-btn"     id="tf-gC" onclick="setTFilter('grade','C')"><span class="gr gr-C">C</span></button>
       <button class="tf-btn"     id="tf-gD" onclick="setTFilter('grade','D')"><span class="gr gr-D">D</span></button>
       <div class="tf-sep"></div>
+      <button class="tf-btn act" id="tf-dt-all"   onclick="setTFilter('date','all')">Все даты</button>
+      <button class="tf-btn"     id="tf-dt-today"  onclick="setTFilter('date','today')">Сегодня</button>
+      <button class="tf-btn"     id="tf-dt-7d"     onclick="setTFilter('date','7d')">7 дн.</button>
+      <button class="tf-btn"     id="tf-dt-30d"    onclick="setTFilter('date','30d')">30 дн.</button>
+      <div class="tf-sep"></div>
       <button class="tf-btn" id="tf-sort" onclick="toggleTSort()" style="margin-left:auto"><i class="fa-solid fa-arrow-down-short-wide"></i> <span id="tf-sort-lbl">Новые</span></button>
     </div>
 
@@ -523,7 +528,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       </div>
       <div id="grade-body" style="display:none">
         <table class="mkt-tbl"><thead><tr>
-          <th>Грейд</th><th>Ставок</th><th>Выиграл</th><th>Win%</th><th>ROI</th>
+          <th>Грейд</th><th>Ставок</th><th>Выиграл</th><th>Win%</th><th>ROI</th><th>Avg EV</th>
         </tr></thead><tbody id="grade-tbody"></tbody></table>
       </div>
     </div>
@@ -583,7 +588,7 @@ let tracker        = [];
 let currentBalance = 0;
 let startBalance   = 0;
 let kellyBase      = 0; // declared bankroll for Kelly sizing — only changes when user sets balance
-let tFilter        = { result: 'all', grade: 'all' };
+let tFilter        = { result: 'all', grade: 'all', date: 'all' };
 let tSortDesc      = true; // true = newest first
 
 const LS_M      = 'ba_matches';
@@ -609,8 +614,9 @@ let fbSearch = '';
 let fbLeague = '';
 let autoResultTimer = null;
 let lastFbMatchTime = null; // MSK time string ("20:30") of last selected today-panel match
-const LS_TG_LOG  = 'ba_tg_log';
-const LS_MKT_OPEN = 'ba_mkt_open';
+const LS_TG_LOG    = 'ba_tg_log';
+const LS_MKT_OPEN  = 'ba_mkt_open';
+const LS_GRADE_OPEN = 'ba_grade_open';
 
 // ══ LS helpers ═══════════════════════════════════════════════════════════════
 const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
@@ -971,7 +977,7 @@ function matchCardHtml(m, isNew=false) {
             <span class="odd-val">${b.odd}</span>
             <span class="ev-tag">+${b.ev}%</span>
             ${stk}
-            <button class="btn-sm btn-track" onclick='trackBet(${JSON.stringify({mid:m.id,label:m.home+" — "+m.away,name,odd:b.odd,prob:b.prob,kelly:b.kelly,grade:b.grade})})' title="Записать ставку в трекер">
+            <button class="btn-sm btn-track" onclick='trackBet(${JSON.stringify({mid:m.id,label:m.home+" — "+m.away,name,odd:b.odd,prob:b.prob,kelly:b.kelly,grade:b.grade,ev:b.ev})})' title="Записать ставку в трекер">
               <i class="fa-solid fa-bookmark"></i>
             </button>
           </div>
@@ -1163,6 +1169,7 @@ function trackBet(info) {
     prob:       info.prob,
     kelly:      info.kelly,
     grade:      info.grade,
+    ev:         info.ev ?? null,
     stake:          stake,
     bal_before:     currentBalance + stake,
     stakeDeducted:  true,
@@ -1266,6 +1273,8 @@ function updateFilterUI() {
   }
   ['A','B','C','D'].forEach(g => $(`tf-g${g}`)?.classList.remove('act'));
   if (tFilter.grade !== 'all') $(`tf-g${tFilter.grade}`)?.classList.add('act');
+  ['all','today','7d','30d'].forEach(d => $(`tf-dt-${d}`)?.classList.remove('act'));
+  $(`tf-dt-${tFilter.date}`)?.classList.add('act');
 }
 
 // ══ Market stats ══════════════════════════════════════════════════════════════
@@ -1409,6 +1418,14 @@ function renderTracker() {
   else if (tFilter.result === 'W')  visible = visible.filter(t => t.result === 'W');
   else if (tFilter.result === 'L')  visible = visible.filter(t => t.result === 'L');
   if (tFilter.grade !== 'all') visible = visible.filter(t => t.grade === tFilter.grade);
+  if (tFilter.date !== 'all') {
+    const now = Date.now();
+    const dayStart = new Date(); dayStart.setHours(0,0,0,0);
+    const cut = tFilter.date === 'today' ? dayStart.getTime()
+              : tFilter.date === '7d'    ? now - 7  * 86400000
+              :                            now - 30 * 86400000;
+    visible = visible.filter(t => (t.ts || 0) >= cut);
+  }
   if (!tSortDesc) visible = visible.slice().reverse(); // array was newest-first, reverse = oldest-first
 
   if (!visible.length) {
@@ -1862,23 +1879,35 @@ function renderGradeStats() {
   if (section) section.style.display = 'block';
   const gm = {};
   settled.forEach(t => {
-    if (!gm[t.grade]) gm[t.grade] = {bets:0, wins:0, stake:0, ret:0};
+    if (!gm[t.grade]) gm[t.grade] = {bets:0, wins:0, stake:0, ret:0, evSum:0, evN:0};
     gm[t.grade].bets++;
     gm[t.grade].stake += t.stake;
     if (t.result === 'W') { gm[t.grade].wins++; gm[t.grade].ret += t.stake * t.odd; }
+    if (t.ev != null) { gm[t.grade].evSum += t.ev; gm[t.grade].evN++; }
   });
   const rows = ['A','B','C','D'].filter(g => gm[g]).map(g => {
-    const s = gm[g];
+    const s   = gm[g];
     const wr  = (s.wins / s.bets * 100).toFixed(0);
     const roi = s.stake ? ((s.ret - s.stake) / s.stake * 100).toFixed(1) : '—';
+    const avgEv = s.evN ? (s.evSum / s.evN).toFixed(1) : '—';
+    const evc = avgEv !== '—' && parseFloat(avgEv) > 0 ? 'var(--green)' : 'var(--muted)';
     return `<tr>
       <td>${grHtml(g)}</td><td>${s.bets}</td><td>${s.wins}</td>
       <td style="color:${wr>=55?'var(--green)':wr>=40?'var(--yellow)':'var(--red)'}">${wr}%</td>
       <td style="color:${parseFloat(roi)>0?'var(--green)':parseFloat(roi)<0?'var(--red)':'var(--muted)'}">${roi!=='—'?(parseFloat(roi)>0?'+':'')+roi+'%':'—'}</td>
+      <td style="color:${evc}">${avgEv !== '—' ? '+'+avgEv+'%' : '—'}</td>
     </tr>`;
   }).join('');
   const tbody = $('grade-tbody');
   if (tbody) tbody.innerHTML = rows;
+
+  // Auto-expand unless user explicitly closed it
+  const body = $('grade-body');
+  const chev = $('grade-chevron');
+  if (lsGet(LS_GRADE_OPEN) !== false && body && body.style.display === 'none') {
+    body.style.display = 'block';
+    if (chev) chev.style.transform = 'rotate(180deg)';
+  }
 }
 
 function toggleGradeStats() {
@@ -1887,6 +1916,7 @@ function toggleGradeStats() {
   const open = body.style.display !== 'none';
   body.style.display = open ? 'none' : 'block';
   if (chev) chev.style.transform = open ? '' : 'rotate(180deg)';
+  lsSet(LS_GRADE_OPEN, !open);
 }
 
 // ══ Daily P&L ════════════════════════════════════════════════════════════════
@@ -2024,6 +2054,58 @@ function initFromStorage() {
   setTimeout(loadTodayMatches, 400);
 }
 
+// ══ Live score auto-refresh ═══════════════════════════════════════════════════
+let liveRefreshTimer = null;
+
+function startLiveRefresh() {
+  if (liveRefreshTimer) return;
+  if (!fbMatches.some(m => m.state === 'in')) return;
+  liveRefreshTimer = setInterval(doLiveRefresh, 60000);
+  updateLiveBadge();
+}
+
+function stopLiveRefresh() {
+  if (liveRefreshTimer) { clearInterval(liveRefreshTimer); liveRefreshTimer = null; }
+  updateLiveBadge();
+}
+
+function updateLiveBadge() {
+  const cnt = $('fb-count');
+  if (!cnt) return;
+  const liveN = fbMatches.filter(m => m.state === 'in').length;
+  if (liveN > 0) {
+    cnt.innerHTML = `(${fbMatches.length}) <span style="color:var(--green);font-size:9px;font-weight:800">● ${liveN} LIVE</span>`;
+  } else {
+    cnt.textContent = fbMatches.length ? `(${fbMatches.length})` : '';
+  }
+}
+
+async function doLiveRefresh() {
+  if (!fbMatches.some(m => m.state === 'in')) { stopLiveRefresh(); return; }
+  try {
+    const r    = await fetch('/football_today?force=1');
+    const data = await r.json();
+    if (data.error || !data.matches) return;
+    fbMatches = data.matches;
+    renderFbList();
+    updateLiveBadge();
+    // Update score cache for tracker live pills
+    let scoreDirty = false;
+    fbMatches.forEach(m => {
+      if (m.state === 'in' && m.espn_id && m.home_score != null) {
+        const prev = scoreCache[m.espn_id] || {};
+        if (prev.home_score !== m.home_score || prev.away_score !== m.away_score) {
+          scoreCache[m.espn_id] = { state: 'in', home_score: m.home_score, away_score: m.away_score };
+          scoreDirty = true;
+        }
+      }
+    });
+    if (scoreDirty) renderTracker();
+    // Stop if no more live matches
+    if (!fbMatches.some(m => m.state === 'in')) stopLiveRefresh();
+  } catch { /* silent */ }
+}
+
 // ══ Football Today ════════════════════════════════════════════════════════════
 let fbMatches  = [];
 let fbPanelOpen = true;
@@ -2050,14 +2132,16 @@ async function loadTodayMatches(force) {
     fbMatches = data.matches || [];
     fbLeague = ''; fbSearch = '';
     const searchEl = $('fb-search'); if (searchEl) searchEl.value = '';
-    $('fb-count').textContent = fbMatches.length ? `(${fbMatches.length})` : '';
     if (!fbMatches.length) {
+      $('fb-count').textContent = '';
       $('fb-list').innerHTML = '<div class="empty" style="padding:16px;font-size:12px"><i class="fa-solid fa-calendar-xmark"></i>Нет матчей на сегодня</div>';
       const lgBar = $('lg-bar'); if (lgBar) lgBar.style.display = 'none';
       return;
     }
     renderLeagueBar();
     renderFbList();
+    updateLiveBadge();
+    startLiveRefresh();
   } catch {
     $('fb-list').innerHTML = '<div class="empty" style="padding:16px;font-size:12px"><i class="fa-solid fa-triangle-exclamation"></i>Ошибка загрузки</div>';
   } finally {

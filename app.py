@@ -210,6 +210,10 @@ def get_h2h_factor(home_id, away_id, max_meetings=10):
     """
     if not home_id or not away_id:
         return 1.0, 1.0, 0
+    cache_key = (str(home_id), str(away_id))
+    cached = _H2H_CACHE.get(cache_key)
+    if cached and time.time() - cached[3] < _H2H_TTL:
+        return cached[0], cached[1], cached[2]
     try:
         r = _espn_get(
             f'https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/{home_id}/schedule',
@@ -254,9 +258,10 @@ def get_h2h_factor(home_id, away_id, max_meetings=10):
         if count < 3:
             return 1.0, 1.0, count
         neutral = 1 / 3
-        lh_factor = 1.0 + (home_wins / count - neutral) * 0.24
-        la_factor = 1.0 + (away_wins / count - neutral) * 0.24
-        return round(max(min(lh_factor, 1.08), 0.92), 3), round(max(min(la_factor, 1.08), 0.92), 3), count
+        lh_factor = round(max(min(1.0 + (home_wins / count - neutral) * 0.24, 1.08), 0.92), 3)
+        la_factor = round(max(min(1.0 + (away_wins / count - neutral) * 0.24, 1.08), 0.92), 3)
+        _H2H_CACHE[cache_key] = (lh_factor, la_factor, count, time.time())
+        return lh_factor, la_factor, count
     except Exception:
         return 1.0, 1.0, 0
 
@@ -465,6 +470,8 @@ def build_express():
 _ESPN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/all/scoreboard'
 _MSK  = timezone(timedelta(hours=3))
 _sched_cache = {'date': None, 'data': None, '_ts': 0, '_lock': threading.Lock()}
+_H2H_CACHE   = {}   # (home_id, away_id) → (lh_factor, la_factor, count, ts)
+_H2H_TTL     = 86400  # 24 hours
 
 # ─── The Odds API — multi-market enrichment ───────────────────────────────────
 
