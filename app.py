@@ -3,6 +3,7 @@ import math
 import os
 import unicodedata
 from itertools import product, combinations
+from concurrent.futures import ThreadPoolExecutor
 import uuid
 import threading
 from datetime import datetime, timezone, timedelta
@@ -17,6 +18,28 @@ AVG_AWAY_GOALS        = 1.12   # Historical football away average
 LEAGUE_GOALS_PER_GAME = 1.35   # League average goals scored per team per game
 DC_RHO                = -0.13  # Dixon-Coles low-score correction factor
 MAX_GOALS             = 7
+
+# ─── League-specific goal averages ───────────────────────────────────────────
+# (avg_home_goals, avg_away_goals, league_avg_per_team)
+_LEAGUE_PARAMS = {
+    'premier league':   (1.53, 1.16, 1.38),
+    'bundesliga':       (1.64, 1.26, 1.46),
+    'la liga':          (1.47, 1.12, 1.31),
+    'serie a':          (1.38, 1.05, 1.24),
+    'ligue 1':          (1.42, 1.08, 1.27),
+    'champions league': (1.45, 1.10, 1.30),
+    'europa league':    (1.55, 1.20, 1.38),
+    'libertadores':     (1.41, 1.08, 1.26),
+    'eredivisie':       (1.72, 1.35, 1.55),
+    'primeira liga':    (1.44, 1.09, 1.29),
+}
+
+def _league_consts(league_name):
+    lg = (league_name or '').lower()
+    for key, vals in _LEAGUE_PARAMS.items():
+        if key in lg:
+            return vals
+    return AVG_HOME_GOALS, AVG_AWAY_GOALS, LEAGUE_GOALS_PER_GAME
 
 # ─── Poisson + Dixon-Coles ────────────────────────────────────────────────────
 
@@ -50,37 +73,18 @@ def match_probabilities(lh, la):
 
 # ─── Lambda Calculation ───────────────────────────────────────────────────────
 
-def calculate_lambdas(hs, hc, as_, ac, ng=5):
-    """
-    Strength-index model using fixed league averages for normalization.
-
-    Using LEAGUE_GOALS_PER_GAME as the baseline is more accurate than
-    normalizing against the two teams' own average — that approach cancels
-    out quality differences when both teams are equally strong or weak.
-
-    ng: number of games the stats cover (default 5).
-    """
+def calculate_lambdas(hs, hc, as_, ac, ng=5, league=''):
+    """Strength-index model using league-specific goal averages for normalization."""
+    avg_home, avg_away, L = _league_consts(league)
     games = max(ng, 1)
-
-    # Per-game rates
-    hs_pg = hs / games
-    hc_pg = hc / games
-    as_pg = as_ / games
-    ac_pg = ac / games
-
-    L = LEAGUE_GOALS_PER_GAME
-
-    # Strength relative to league average (>1 = above average)
-    home_attack  = hs_pg / L   # how well home team scores
-    away_defense = ac_pg / L   # how much away team concedes (>1 = leaky)
+    hs_pg = hs / games; hc_pg = hc / games
+    as_pg = as_ / games; ac_pg = ac / games
+    home_attack  = hs_pg / L
+    away_defense = ac_pg / L
     away_attack  = as_pg / L
-    home_defense = hc_pg / L   # how much home team concedes
-
-    lh = home_attack * away_defense * AVG_HOME_GOALS
-    la = away_attack * home_defense * AVG_AWAY_GOALS
-
-    # Floor of 0.50 per team — lambdas below this indicate missing/unreliable ESPN data.
-    # Real professional matches have at least ~1.0 combined xG; 0.25 allowed absurd results.
+    home_defense = hc_pg / L
+    lh = home_attack * away_defense * avg_home
+    la = away_attack * home_defense * avg_away
     return max(min(lh, 4.5), 0.50), max(min(la, 4.5), 0.50)
 
 def form_adjustment(lmbd, form_pts):
@@ -158,6 +162,127 @@ def bet_grade(conf, ev_val):
     if conf >= 35 and ev_val >= 0.02: return "C"
     return "D"
 
+# ─── ESPN team stats helper ───────────────────────────────────────────────────
+
+def get_team_season(team_id, side='total'):
+    r = _req.get(
+        f'https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/{team_id}',
+        timeout=8
+    )
+    r.raise_for_status()
+    items = r.json().get('team', {}).get('record', {}).get('items', [])
+    def parse(t):
+        item = next((i for i in items if i.get('type') == t), None)
+        if not item: return None
+        stats = {s['name']: s['value'] for s in item.get('stats', [])}
+        gp = int(stats.get('gamesPlayed', 0) or 0)
+        return int(stats.get('pointsFor', 0) or 0), int(stats.get('pointsAgainst', 0) or 0), gp
+    split = parse(side)
+    total = parse('total')
+    if split and split[2] >= 3:
+        return split
+    if total and total[2]:
+        return total
+    return 0, 0, 5
+
+
+# ─── Core analysis helper ─────────────────────────────────────────────────────
+
+def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, league=''):
+    """Run full Poisson + EV analysis. Returns match_data dict ready for SAVED_MATCHES."""
+    def _o(key, default=2.0):
+        val = odds.get(key)
+        try: return max(float(val), 1.01) if val else default
+        except: return default
+    def _oopt(key):
+        val = odds.get(key)
+        try: return max(float(val), 1.01) if val else None
+        except: return None
+
+    oh, ox, oa   = _o('oh'), _o('ox'), _o('oa')
+    o1x, ox2     = _o('o1x', 1.5), _o('ox2', 1.5)
+    otb          = _oopt('otb');    otm    = _oopt('otm')
+    otb35        = _oopt('otb35');  otm35  = _oopt('otm35')
+    ob_yes       = _oopt('ob_yes'); ob_no  = _oopt('ob_no')
+    oah_m15      = _oopt('oah_m15'); oah_p15 = _oopt('oah_p15')
+
+    lh, la = calculate_lambdas(hs, hc, as_, ac, ng, league)
+    lh = form_adjustment(lh, fh)
+    la = form_adjustment(la, fa)
+    lh, la = home_away_bias(lh, la)
+
+    probs, p1, px, p2 = match_probabilities(lh, la)
+    vig = calc_vig(oh, ox, oa)
+    def mp(odd): return fair_prob(odd, vig)
+
+    markets = [
+        ('П1',  p1,       oh,  mp(oh)),
+        ('X',   px,       ox,  mp(ox)),
+        ('П2',  p2,       oa,  mp(oa)),
+        ('1X',  p1 + px,  o1x, mp(o1x)),
+        ('X2',  px + p2,  ox2, mp(ox2)),
+    ]
+    p_tb25     = sum(p for (h, a), p in probs.items() if h + a >= 3)
+    p_tb35     = sum(p for (h, a), p in probs.items() if h + a >= 4)
+    p_btts_yes = sum(p for (h, a), p in probs.items() if h > 0 and a > 0)
+    if otb:    markets.append(('ТБ2.5',  p_tb25,           otb,    mp(otb)))
+    if otm:    markets.append(('ТМ2.5',  1.0 - p_tb25,     otm,    mp(otm)))
+    if otb35:  markets.append(('ТБ3.5',  p_tb35,           otb35,  mp(otb35)))
+    if otm35:  markets.append(('ТМ3.5',  1.0 - p_tb35,     otm35,  mp(otm35)))
+    if ob_yes: markets.append(('ОЗ Да',  p_btts_yes,       ob_yes, mp(ob_yes)))
+    if ob_no:  markets.append(('ОЗ Нет', 1.0 - p_btts_yes, ob_no,  mp(ob_no)))
+    if oah_m15:
+        markets.append(('ФХ -1.5', sum(p for (h,a),p in probs.items() if h-a >= 2), oah_m15, mp(oah_m15)))
+    if oah_p15:
+        markets.append(('ФГ +1.5', sum(p for (h,a),p in probs.items() if h-a <= 1), oah_p15, mp(oah_p15)))
+
+    bets = {}
+    for name, model_p, odd, market_p in markets:
+        h_prob = hybrid_prob(model_p, market_p)
+        ev_val = calc_ev(h_prob, odd)
+        if ev_val <= 0:
+            continue
+        k_raw  = kelly_fraction(h_prob, odd)
+        conf   = confidence_score(ev_val, model_p, market_p, k_raw, odd)
+        k_dyn  = dynamic_kelly(k_raw, conf)
+        grade  = bet_grade(conf, ev_val)
+        vr     = model_p / max(market_p, 0.01)
+        bets[name] = {
+            'model_prob':  round(model_p  * 100, 1),
+            'market_prob': round(market_p * 100, 1),
+            'prob':        round(h_prob   * 100, 1),
+            'odd':         round(odd, 2),
+            'ev':          round(ev_val   * 100, 1),
+            'kelly':       round(k_dyn    * 100, 2),
+            'conf':        round(conf,     1),
+            'grade':       grade,
+            'vr':          round(vr, 2),
+            'logical':     round(h_prob * (conf / 100), 4),
+        }
+
+    ranked = sorted(bets.items(), key=lambda x: x[1]['logical'], reverse=True)
+    seen_dc = False
+    top3 = []
+    for item in ranked:
+        if item[0] in ('1X', 'X2'):
+            if seen_dc: continue
+            seen_dc = True
+        top3.append(item)
+        if len(top3) == 3: break
+
+    best = top3[0] if top3 else None
+    return {
+        'id':   str(uuid.uuid4()),
+        'home': home_team,
+        'away': away_team,
+        'lh':   round(lh, 2),
+        'la':   round(la, 2),
+        'vig':  round(vig * 100, 2),
+        'best': {'name': best[0], **best[1]} if best else None,
+        'top3': top3,
+    }
+
+
 # ─── Routes ───────────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -181,10 +306,9 @@ def restore():
 @app.route("/calculate", methods=["POST"])
 def calculate():
     try:
-        d = request.json
+        d         = request.json
         home_team = (d.get("home_team") or "Хозяева").strip()
         away_team = (d.get("away_team") or "Гости").strip()
-
         hs  = max(int(d.get("hs",  0)), 0)
         hc  = max(int(d.get("hc",  0)), 0)
         as_ = max(int(d.get("as",  0)), 0)
@@ -192,119 +316,12 @@ def calculate():
         fh  = max(min(float(d.get("fh", 7.5)), 15.0), 0.0)
         fa  = max(min(float(d.get("fa", 7.5)), 15.0), 0.0)
         ng  = max(int(d.get("ng", 5)), 1)
-
-        odds = d.get("odds", {})
-        def o(key, default=2.0):
-            val = odds.get(key)
-            return max(float(val or default), 1.01)
-        def o_opt(key):
-            val = odds.get(key)
-            return max(float(val), 1.01) if val else None
-
-        oh, ox, oa = o("oh"), o("ox"), o("oa")
-        o1x, ox2   = o("o1x", 1.5), o("ox2", 1.5)
-        # Totals and BTTS are optional — only analysed when real bookmaker odds are provided.
-        # Using defaults here creates phantom value because the Poisson model naturally
-        # predicts ТМ/ОЗ-Нет for average/below-average teams, and inflated defaults
-        # (1.8, 1.65, 1.9) imply a market probability well below the model's estimate.
-        otb    = o_opt("otb")
-        otm    = o_opt("otm")
-        otb35  = o_opt("otb35")
-        otm35  = o_opt("otm35")
-        ob_yes = o_opt("ob_yes")
-        ob_no  = o_opt("ob_no")
-        oah_m15 = o_opt("oah_m15")
-        oah_p15 = o_opt("oah_p15")
-
-        lh, la = calculate_lambdas(hs, hc, as_, ac, ng)
-        lh = form_adjustment(lh, fh)
-        la = form_adjustment(la, fa)
-        lh, la = home_away_bias(lh, la)
-
-        probs, p1, px, p2 = match_probabilities(lh, la)
-        vig = calc_vig(oh, ox, oa)
-        def mp(odd): return fair_prob(odd, vig)
-
-        markets = [
-            ("П1",  p1,       oh,  mp(oh)),
-            ("X",   px,       ox,  mp(ox)),
-            ("П2",  p2,       oa,  mp(oa)),
-            ("1X",  p1 + px,  o1x, mp(o1x)),
-            ("X2",  px + p2,  ox2, mp(ox2)),
-        ]
-        p_tb25 = sum(p for (h,a),p in probs.items() if h+a >= 3)
-        p_tm25 = 1.0 - p_tb25
-        p_tb35 = sum(p for (h,a),p in probs.items() if h+a >= 4)
-        p_tm35 = 1.0 - p_tb35
-        p_btts_yes = sum(p for (h,a),p in probs.items() if h>0 and a>0)
-        p_btts_no  = 1.0 - p_btts_yes
-        if otb:    markets.append(("ТБ2.5",  p_tb25,     otb,    mp(otb)))
-        if otm:    markets.append(("ТМ2.5",  p_tm25,     otm,    mp(otm)))
-        if otb35:  markets.append(("ТБ3.5",  p_tb35,     otb35,  mp(otb35)))
-        if otm35:  markets.append(("ТМ3.5",  p_tm35,     otm35,  mp(otm35)))
-        if ob_yes: markets.append(("ОЗ Да",  p_btts_yes, ob_yes, mp(ob_yes)))
-        if ob_no:  markets.append(("ОЗ Нет", p_btts_no,  ob_no,  mp(ob_no)))
-        if oah_m15:
-            markets.append(("ФХ -1.5", sum(p for (h,a),p in probs.items() if h-a >= 2), oah_m15, mp(oah_m15)))
-        if oah_p15:
-            markets.append(("ФГ +1.5", sum(p for (h,a),p in probs.items() if h-a <= 1), oah_p15, mp(oah_p15)))
-
-        bets = {}
-        for name, model_p, odd, market_p in markets:
-            h_prob = hybrid_prob(model_p, market_p)
-            ev_val = calc_ev(h_prob, odd)
-            if ev_val <= 0:
-                continue
-
-            k_raw  = kelly_fraction(h_prob, odd)
-            conf   = confidence_score(ev_val, model_p, market_p, k_raw, odd)
-            k_dyn  = dynamic_kelly(k_raw, conf)
-            grade  = bet_grade(conf, ev_val)
-            vr     = model_p / max(market_p, 0.01)
-
-            bets[name] = {
-                "model_prob":  round(model_p  * 100, 1),
-                "market_prob": round(market_p * 100, 1),
-                "prob":        round(h_prob   * 100, 1),
-                "odd":         round(odd, 2),
-                "ev":          round(ev_val   * 100, 1),
-                "kelly":       round(k_dyn    * 100, 2),
-                "conf":        round(conf,     1),
-                "grade":       grade,
-                "vr":          round(vr, 2),
-                "logical":     round(h_prob * (conf / 100), 4),
-            }
-
-        ranked = sorted(bets.items(), key=lambda x: x[1]["logical"], reverse=True)
-        # Drop the weaker of 1X/X2 if both appear — they share the draw outcome and
-        # showing both is confusing (it just means "draw is very likely").
-        seen_dc = False
-        top3 = []
-        for item in ranked:
-            if item[0] in ("1X", "X2"):
-                if seen_dc:
-                    continue
-                seen_dc = True
-            top3.append(item)
-            if len(top3) == 3:
-                break
-        best = top3[0] if top3 else None
-        best_pick = {"name": best[0], **best[1]} if best else None
-
-        match_data = {
-            "id":   str(uuid.uuid4()),
-            "home": home_team,
-            "away": away_team,
-            "lh":   round(lh, 2),
-            "la":   round(la, 2),
-            "vig":  round(vig * 100, 2),
-            "best": best_pick,
-            "top3": top3,
-        }
+        league = d.get("league", "")
+        match_data = _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng,
+                                   d.get("odds", {}), league)
         SAVED_MATCHES.append(match_data)
-
-        return jsonify({"top3": top3, "saved_matches": SAVED_MATCHES, "match": match_data})
-
+        return jsonify({"top3": match_data["top3"], "saved_matches": SAVED_MATCHES,
+                        "match": match_data})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -626,32 +643,6 @@ def football_stats():
     away_form = request.args.get('away_form', '')
     if not home_id or not away_id:
         return jsonify({'error': 'Missing team IDs'}), 400
-
-    def get_team_season(team_id, side='total'):
-        r = _req.get(
-            f'https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/{team_id}',
-            timeout=8
-        )
-        r.raise_for_status()
-        items = r.json().get('team', {}).get('record', {}).get('items', [])
-
-        def parse(t):
-            item = next((i for i in items if i.get('type') == t), None)
-            if not item:
-                return None
-            stats = {s['name']: s['value'] for s in item.get('stats', [])}
-            gp = int(stats.get('gamesPlayed', 0) or 0)
-            return int(stats.get('pointsFor', 0) or 0), int(stats.get('pointsAgainst', 0) or 0), gp
-
-        split = parse(side)
-        total = parse('total')
-        # Use home/away split when sample is adequate (≥3 games); fall back to total
-        if split and split[2] >= 3:
-            return split
-        if total and total[2]:
-            return total
-        return 0, 0, 5
-
     try:
         hs, hc, hg = get_team_season(home_id, 'home')
         as_, ac, ag = get_team_season(away_id, 'away')
@@ -663,6 +654,57 @@ def football_stats():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/analyze_all')
+def analyze_all():
+    today = datetime.now(_MSK).date().isoformat()
+    with _sched_cache['_lock']:
+        cached = _sched_cache.get('data')
+    if not cached or cached.get('date') != today:
+        return jsonify({'error': 'Сначала загрузите матчи (нажмите обновить)'}), 400
+
+    to_analyze = [m for m in cached['matches']
+                  if m.get('home_id') and m.get('away_id')
+                  and m.get('odds', {}).get('oh')]
+    if not to_analyze:
+        return jsonify({'error': 'Нет матчей с коэффициентами'}), 400
+
+    def analyze_one(m):
+        try:
+            hs, hc, hg = get_team_season(m['home_id'], 'home')
+            as_, ac, ag = get_team_season(m['away_id'], 'away')
+            ng = max(hg, ag, 1)
+            fh = _form_pts(m.get('home_form', '')) or 7.5
+            fa = _form_pts(m.get('away_form', '')) or 7.5
+            result = _run_analysis(
+                m['home'], m['away'], hs, hc, as_, ac, fh, fa, ng,
+                m.get('odds', {}), m.get('league', '')
+            )
+            if not result.get('best'):
+                return None
+            result['time']    = m.get('time', '')
+            result['league']  = m.get('league', '')
+            result['espn_id'] = m.get('espn_id', '')
+            result['match_time'] = m.get('time', '')
+            result['_inputs'] = {
+                'home_team': m['home'], 'away_team': m['away'],
+                'hs': hs, 'hc': hc, 'as': as_, 'ac': ac,
+                'fh': fh, 'fa': fa, 'ng': ng,
+                'odds': m.get('odds', {}),
+            }
+            return result
+        except Exception:
+            return None
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        results = list(ex.map(analyze_one, to_analyze))
+
+    results = [r for r in results if r]
+    GRADE_O  = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
+    results.sort(key=lambda r: GRADE_O.get(r['best']['grade'], 3))
+    SAVED_MATCHES.extend(results)
+    return jsonify({'matches': results, 'total': len(results)})
 
 
 @app.route('/check_results', methods=['POST'])
