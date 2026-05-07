@@ -5,7 +5,7 @@ import unicodedata
 from itertools import product, combinations
 import uuid
 import threading
-from datetime import date, datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta
 import requests as _req
 
 app = Flask(__name__)
@@ -390,7 +390,7 @@ def _norm_name(name):
 def _fetch_oapi_today():
     if not ODDS_API_KEY:
         return {}
-    today = date.today().isoformat()
+    today = datetime.now(_MSK).date().isoformat()
     with _oapi_cache['_lock']:
         if _oapi_cache['date'] == today and _oapi_cache['data']:
             return _oapi_cache['data']
@@ -495,7 +495,8 @@ def _parse_espn_odds(comp):
 
 @app.route('/football_today')
 def football_today():
-    today = date.today().isoformat()
+    msk_today = datetime.now(_MSK).date()
+    today = msk_today.isoformat()
     force = request.args.get('force') == '1'
     if not force:
         with _sched_cache['_lock']:
@@ -521,7 +522,10 @@ def football_today():
                 away = next((c for c in cs if c.get('homeAway') == 'away'), cs[1])
                 ts = ev.get('date', '')
                 try:
-                    t = datetime.fromisoformat(ts.replace('Z', '+00:00')).astimezone(_MSK).strftime('%H:%M')
+                    dt_msk = datetime.fromisoformat(ts.replace('Z', '+00:00')).astimezone(_MSK)
+                    if dt_msk.date() != msk_today:
+                        continue
+                    t = dt_msk.strftime('%H:%M')
                 except Exception:
                     t = '—'
                 uid = ev.get('uid', '')
