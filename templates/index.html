@@ -561,7 +561,9 @@ let matchSort = 'added'; // 'added' | 'grade'
 let fbSearch = '';
 let fbLeague = '';
 let autoResultTimer = null;
-const LS_TG_LOG = 'ba_tg_log';
+let lastFbMatchTime = null; // MSK time string ("20:30") of last selected today-panel match
+const LS_TG_LOG  = 'ba_tg_log';
+const LS_MKT_OPEN = 'ba_mkt_open';
 
 // ══ LS helpers ═══════════════════════════════════════════════════════════════
 const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
@@ -1071,11 +1073,12 @@ function trackBet(info) {
   currentBalance = Math.max(currentBalance - stake, 0);
   const srcMatch = matches.find(x => x.id === info.mid);
   const entry = {
-    id:         Date.now() + Math.random(),
-    ts:         Date.now(),
-    mid:        info.mid,
-    espn_id:    srcMatch ? (srcMatch.espn_id || null) : null,
-    label:      info.label,
+    id:          Date.now() + Math.random(),
+    ts:          Date.now(),
+    mid:         info.mid,
+    espn_id:     srcMatch ? (srcMatch.espn_id    || null) : null,
+    match_time:  srcMatch ? (srcMatch.match_time || null) : null,
+    label:       info.label,
     name:       info.name,
     odd:        info.odd,
     prob:       info.prob,
@@ -1216,14 +1219,24 @@ function renderMarketStats() {
       </tr>`;
     }).join('');
   $('mkt-tbody').innerHTML = rows;
+
+  // Auto-expand unless user has manually closed it
+  const body = $('mkt-body');
+  const chev = $('mkt-chevron');
+  const pref = lsGet(LS_MKT_OPEN);
+  if (pref !== false && body && body.style.display === 'none') {
+    body.style.display      = 'block';
+    if (chev) chev.style.transform = 'rotate(180deg)';
+  }
 }
 
 function toggleMktStats() {
   const body    = $('mkt-body');
   const chevron = $('mkt-chevron');
   const open    = body.style.display !== 'none';
-  body.style.display    = open ? 'none' : 'block';
+  body.style.display      = open ? 'none' : 'block';
   chevron.style.transform = open ? '' : 'rotate(180deg)';
+  lsSet(LS_MKT_OPEN, !open);
 }
 
 // ══ Edit / delete match ═══════════════════════════════════════════════════════
@@ -1410,7 +1423,8 @@ function addMatch() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Анализ...';
 
-  const _pendingEspnId = lastFbEspnId; // capture before async
+  const _pendingEspnId    = lastFbEspnId;    // capture before async
+  const _pendingMatchTime = lastFbMatchTime;  // capture before async
   const payload = {
     home_team: $('home_team').value.trim(), away_team: $('away_team').value.trim(),
     hs: $('hs').value, hc: $('hc_i').value, as: $('as_i').value, ac: $('ac').value,
@@ -1439,14 +1453,16 @@ function addMatch() {
     const newMatch = matches.find(m => m.id === data.match.id);
     if (newMatch) {
       newMatch._inputs = { ...payload };
-      if (_pendingEspnId) newMatch.espn_id = _pendingEspnId;
+      if (_pendingEspnId)    newMatch.espn_id    = _pendingEspnId;
+      if (_pendingMatchTime) newMatch.match_time = _pendingMatchTime;
     }
     // Track value badge for today panel
     if (_pendingEspnId && data.match.best) {
       fbAnalyzed[_pendingEspnId] = data.match.best.grade;
       refreshFbBadges();
     }
-    lastFbEspnId = null;
+    lastFbEspnId    = null;
+    lastFbMatchTime = null;
     saveState();
     renderMatches();
     updateHeader();
@@ -1664,8 +1680,34 @@ function renderFbList() {
 // ══ Auto result polling ═══════════════════════════════════════════════════════
 function startAutoResult() {
   if (autoResultTimer) return;
-  if (!tracker.some(t => t.result === null && t.espn_id)) return;
-  autoResultTimer = setInterval(autoCheckResults, 120000);
+  const pending = tracker.filter(t => t.result === null && t.espn_id);
+  if (!pending.length) return;
+
+  // Delay first poll: if match_time is known, wait until ~95 min after kick-off.
+  // Otherwise start polling immediately.
+  const now = Date.now();
+  let delayMs = 0;
+  const withTimes = pending.filter(t => t.match_time);
+  if (withTimes.length) {
+    const kickoffs = withTimes.map(t => {
+      const [h, m] = t.match_time.split(':').map(Number);
+      const d = new Date(); d.setHours(h, m, 0, 0);
+      // If kick-off appears to be in the past by more than 5 min, assume it was today
+      return d.getTime() + 95 * 60000; // first poll at +95 min
+    });
+    const earliest = Math.min(...kickoffs);
+    delayMs = Math.max(0, earliest - now);
+  }
+
+  if (delayMs > 5 * 60000) {
+    // Schedule first check, then start interval
+    setTimeout(() => {
+      autoCheckResults();
+      if (!autoResultTimer) autoResultTimer = setInterval(autoCheckResults, 300000);
+    }, delayMs);
+  } else {
+    autoResultTimer = setInterval(autoCheckResults, 300000);
+  }
 }
 
 function stopAutoResult() {
@@ -1675,6 +1717,11 @@ function stopAutoResult() {
 async function autoCheckResults() {
   const pending = tracker.filter(t => t.result === null && t.espn_id);
   if (!pending.length) { stopAutoResult(); return; }
+
+  // Stop polling if all pending bets were added more than 6 hours ago
+  const oldest = Math.min(...pending.map(t => t.ts || Date.now()));
+  if (Date.now() - oldest > 6 * 3600000) { stopAutoResult(); return; }
+
   try {
     const ids = [...new Set(pending.map(t => t.espn_id))];
     const r = await fetch('/check_results', {
@@ -1868,7 +1915,8 @@ async function selectFbMatch(idx) {
     $('oah_m15').value = '';
     $('oah_p15').value = '';
 
-    lastFbEspnId = m.espn_id || null;
+    lastFbEspnId    = m.espn_id || null;
+    lastFbMatchTime = m.time    || null;
 
     const hasOdds = od.oh && od.ox && od.oa;
     if (hasOdds) {

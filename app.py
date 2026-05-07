@@ -367,9 +367,9 @@ def build_express():
 
 _ESPN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/all/scoreboard'
 _MSK  = timezone(timedelta(hours=3))
-_sched_cache = {'date': None, 'data': None, '_lock': threading.Lock()}
+_sched_cache = {'date': None, 'data': None, '_ts': 0, '_lock': threading.Lock()}
 
-# ─── The Odds API — totals 3.5 enrichment ─────────────────────────────────────
+# ─── The Odds API — multi-market enrichment ───────────────────────────────────
 
 ODDS_API_KEY  = os.environ.get('ODDS_API_KEY', '9f3e4a8a382f0bfa86bd679465732e15')
 _OAPI_BASE    = 'https://api.the-odds-api.com/v4/sports'
@@ -379,7 +379,7 @@ _OAPI_LEAGUES = [
     'soccer_uefa_champs_league', 'soccer_uefa_europa_league',
     'soccer_conmebol_copa_libertadores',
 ]
-_oapi_cache = {'date': None, 'data': {}, '_lock': threading.Lock()}
+_oapi_cache = {'date': None, 'data': {}, '_ts': 0, '_lock': threading.Lock()}
 
 
 def _norm_name(name):
@@ -387,12 +387,24 @@ def _norm_name(name):
     return ''.join(c for c in n if not unicodedata.combining(c)).strip()
 
 
+def _avg_odd(prices):
+    """Harmonic-mean average of decimal odds (averages implied probabilities)."""
+    if not prices:
+        return None
+    return round(len(prices) / sum(1.0 / p for p in prices), 2)
+
+
 def _fetch_oapi_today():
+    """Fetch 1x2, totals (2.5 + 3.5), and BTTS odds from The Odds API.
+    Results are cached per-day with a 4-hour TTL to conserve API quota.
+    """
     if not ODDS_API_KEY:
         return {}
-    today = datetime.now(_MSK).date().isoformat()
+    now_ts = datetime.now().timestamp()
+    today  = datetime.now(_MSK).date().isoformat()
     with _oapi_cache['_lock']:
-        if _oapi_cache['date'] == today and _oapi_cache['data']:
+        if (_oapi_cache.get('date') == today and _oapi_cache.get('data')
+                and now_ts - _oapi_cache.get('_ts', 0) < 14400):
             return _oapi_cache['data']
     result = {}
     for league in _OAPI_LEAGUES:
@@ -400,43 +412,82 @@ def _fetch_oapi_today():
             r = _req.get(
                 f'{_OAPI_BASE}/{league}/odds/',
                 params={'apiKey': ODDS_API_KEY, 'regions': 'eu',
-                        'markets': 'totals', 'oddsFormat': 'decimal'},
+                        'markets': 'h2h,totals,btts', 'oddsFormat': 'decimal'},
                 timeout=10
             )
             if r.status_code != 200:
                 continue
             for match in r.json():
-                key = (_norm_name(match.get('home_team', '')),
-                       _norm_name(match.get('away_team', '')))
-                overs, unders = [], []
+                home_name = match.get('home_team', '')
+                away_name = match.get('away_team', '')
+                key = (_norm_name(home_name), _norm_name(away_name))
+                h2h_h, h2h_d, h2h_a = [], [], []
+                tb25, tm25, tb35, tm35 = [], [], [], []
+                btts_y, btts_n = [], []
                 for bm in match.get('bookmakers', []):
                     for mkt in bm.get('markets', []):
-                        if mkt.get('key') != 'totals':
-                            continue
+                        mk = mkt.get('key')
                         for oc in mkt.get('outcomes', []):
-                            if oc.get('point') == 3.5:
-                                if oc.get('name') == 'Over':
-                                    overs.append(oc['price'])
-                                elif oc.get('name') == 'Under':
-                                    unders.append(oc['price'])
-                if overs and unders:
-                    result[key] = {
-                        'otb35': round(1 / (sum(1/o for o in overs) / len(overs)), 2),
-                        'otm35': round(1 / (sum(1/u for u in unders) / len(unders)), 2),
-                    }
+                            nm = oc.get('name', '')
+                            p  = oc.get('price')
+                            if not p:
+                                continue
+                            if mk == 'h2h':
+                                if nm == home_name:   h2h_h.append(p)
+                                elif nm == 'Draw':    h2h_d.append(p)
+                                elif nm == away_name: h2h_a.append(p)
+                            elif mk == 'totals':
+                                pt = oc.get('point')
+                                if pt == 2.5:
+                                    (tb25 if nm == 'Over' else tm25).append(p)
+                                elif pt == 3.5:
+                                    (tb35 if nm == 'Over' else tm35).append(p)
+                            elif mk == 'btts':
+                                if nm == 'Yes': btts_y.append(p)
+                                elif nm == 'No': btts_n.append(p)
+                e = {}
+                oh = _avg_odd(h2h_h); ox = _avg_odd(h2h_d); oa = _avg_odd(h2h_a)
+                if oh: e['oh'] = oh
+                if ox: e['ox'] = ox
+                if oa: e['oa'] = oa
+                if oh and ox and oa:
+                    tot = 1/oh + 1/ox + 1/oa
+                    p1 = (1/oh)/tot; px = (1/ox)/tot; p2 = (1/oa)/tot
+                    e['o1x'] = round(1/(p1+px), 2)
+                    e['ox2'] = round(1/(px+p2), 2)
+                otb = _avg_odd(tb25); otm = _avg_odd(tm25)
+                if otb:   e['otb']   = otb
+                if otm:   e['otm']   = otm
+                otb35 = _avg_odd(tb35); otm35 = _avg_odd(tm35)
+                if otb35: e['otb35'] = otb35
+                if otm35: e['otm35'] = otm35
+                ob_y = _avg_odd(btts_y); ob_n = _avg_odd(btts_n)
+                if ob_y: e['ob_yes'] = ob_y
+                if ob_n: e['ob_no']  = ob_n
+                if e:
+                    result[key] = e
         except Exception:
             continue
     with _oapi_cache['_lock']:
         _oapi_cache['date'] = today
+        _oapi_cache['_ts']  = now_ts
         _oapi_cache['data'] = result
     return result
 
 
 def _form_pts(form_str):
-    s = (form_str or '').strip().upper()
+    """Exponential-decay form score (0–15 scale, 7.5 = neutral).
+    Most recent game carries full weight; each prior game decays by 0.80×.
+    """
+    s = (form_str or '').strip().upper()[-5:]
     if not s:
         return None
-    return sum(3 if c == 'W' else 1 if c == 'D' else 0 for c in s[-5:])
+    decay  = [1.0, 0.80, 0.64, 0.51, 0.41]
+    chars  = list(reversed(s))          # chars[0] = most recent game
+    raw    = sum((3 if c == 'W' else 1 if c == 'D' else 0) * decay[i]
+                 for i, c in enumerate(chars))
+    max_w  = 3.0 * sum(decay[:len(chars)])
+    return round(raw / max_w * len(chars) * 3, 1) if max_w else None
 
 
 def _american_to_decimal(ml):
@@ -496,11 +547,13 @@ def _parse_espn_odds(comp):
 @app.route('/football_today')
 def football_today():
     msk_today = datetime.now(_MSK).date()
-    today = msk_today.isoformat()
+    today  = msk_today.isoformat()
+    now_ts = datetime.now().timestamp()
     force = request.args.get('force') == '1'
     if not force:
         with _sched_cache['_lock']:
-            if _sched_cache['date'] == today and _sched_cache['data']:
+            if (_sched_cache.get('date') == today and _sched_cache.get('data')
+                    and now_ts - _sched_cache.get('_ts', 0) < 3600):
                 return jsonify(_sched_cache['data'])
     try:
         r = _req.get(f'{_ESPN}?dates={today.replace("-","")}&limit=200', timeout=10)
@@ -558,6 +611,7 @@ def football_today():
         result = {'matches': matches, 'total': len(matches), 'date': today}
         with _sched_cache['_lock']:
             _sched_cache['date'] = today
+            _sched_cache['_ts']  = now_ts
             _sched_cache['data'] = result
         return jsonify(result)
     except Exception as e:
@@ -573,25 +627,34 @@ def football_stats():
     if not home_id or not away_id:
         return jsonify({'error': 'Missing team IDs'}), 400
 
-    def get_team_season(team_id):
+    def get_team_season(team_id, side='total'):
         r = _req.get(
             f'https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/{team_id}',
             timeout=8
         )
         r.raise_for_status()
         items = r.json().get('team', {}).get('record', {}).get('items', [])
-        total = next((i for i in items if i.get('type') == 'total'), None)
-        if not total:
-            return 0, 0, 5
-        stats = {s['name']: s['value'] for s in total.get('stats', [])}
-        gp       = int(stats.get('gamesPlayed', 5)) or 5
-        scored   = int(stats.get('pointsFor', 0))
-        conceded = int(stats.get('pointsAgainst', 0))
-        return scored, conceded, gp
+
+        def parse(t):
+            item = next((i for i in items if i.get('type') == t), None)
+            if not item:
+                return None
+            stats = {s['name']: s['value'] for s in item.get('stats', [])}
+            gp = int(stats.get('gamesPlayed', 0) or 0)
+            return int(stats.get('pointsFor', 0) or 0), int(stats.get('pointsAgainst', 0) or 0), gp
+
+        split = parse(side)
+        total = parse('total')
+        # Use home/away split when sample is adequate (≥3 games); fall back to total
+        if split and split[2] >= 3:
+            return split
+        if total and total[2]:
+            return total
+        return 0, 0, 5
 
     try:
-        hs, hc, hg = get_team_season(home_id)
-        as_, ac, ag = get_team_season(away_id)
+        hs, hc, hg = get_team_season(home_id, 'home')
+        as_, ac, ag = get_team_season(away_id, 'away')
         ng = max(hg, ag, 1)
         return jsonify({
             'hs': hs, 'hc': hc, 'as': as_, 'ac': ac,
