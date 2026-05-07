@@ -508,6 +508,7 @@ let tgMinGrade = 'A';
 let fbAnalyzed = {}; // espn_id → grade  (for value badges in today list)
 let scoreCache = {}; // espn_id → {state, home_score, away_score}
 let lastFbEspnId = null; // set when user selects a match from today panel
+let tgNotified = new Set(); // dedup keys (espn_id or match id) already sent to Telegram
 
 // ══ LS helpers ═══════════════════════════════════════════════════════════════
 const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
@@ -1383,8 +1384,10 @@ function addMatch() {
     toast(`${payload.home_team} — ${payload.away_team} добавлен${bestInfo}`);
     $('home_team').value = ''; $('away_team').value = '';
     if (matches.length >= 2) fetchExpress();
-    // Telegram notification
-    if (data.match.best && shouldNotify(data.match.best.grade)) {
+    // Telegram notification (deduplicated by team pair within session)
+    const _tgKey = `${payload.home_team}|${payload.away_team}`;
+    if (data.match.best && shouldNotify(data.match.best.grade) && !tgNotified.has(_tgKey)) {
+      tgNotified.add(_tgKey);
       sendTelegram(buildTgMessage(data.match));
     }
   })
