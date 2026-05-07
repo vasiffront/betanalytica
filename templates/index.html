@@ -442,6 +442,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
           <div class="bw-label">Текущий банкролл</div>
           <div class="bw-amount" id="bw-amount" style="color:var(--green)">—</div>
           <div style="font-size:11px;color:var(--muted);margin-top:3px">База Kelly: <span id="bw-base">—</span></div>
+          <div id="bw-inplay" style="font-size:11px;color:var(--yellow);margin-top:2px;display:none"></div>
         </div>
         <div style="text-align:right">
           <div class="bw-label">Прибыль / убыток</div>
@@ -695,6 +696,28 @@ function stakeTag(kelly) {
   return `<span class="stake-tag">${fmt(s)} ₽</span>`;
 }
 
+// Normalize pending stakes so their sum never exceeds kellyBase.
+// Called after every trackBet and applyBalance.
+function normalizeStakes() {
+  if (!kellyBase || kellyBase <= 0) return;
+  const pending = tracker.filter(t => t.result === null && t.stakeDeducted);
+  if (!pending.length) return;
+
+  // Ideal (uncapped) Kelly stakes
+  const ideal = pending.map(t => Math.max(Math.round(kellyBase * t.kelly / 100), 1));
+  const totalIdeal = ideal.reduce((a, b) => a + b, 0);
+  if (totalIdeal <= kellyBase) return; // already within budget
+
+  const scale = kellyBase / totalIdeal;
+  pending.forEach((t, i) => {
+    const newStake = Math.max(Math.round(ideal[i] * scale), 1);
+    currentBalance += t.stake;   // return old deduction
+    t.stake = newStake;
+    currentBalance -= newStake;  // apply new deduction
+  });
+  currentBalance = Math.max(currentBalance, 0);
+}
+
 // ══ Tabs ═════════════════════════════════════════════════════════════════════
 function showTab(name) {
   ['matches','express','tracker'].forEach(t => {
@@ -751,11 +774,18 @@ function renderBalanceWidget() {
   const effective = kellyBase + pnl;
   const sign = pnl >= 0 ? '+' : '';
 
+  const inPlay = tracker.filter(t => t.result === null && t.stakeDeducted).reduce((s, t) => s + t.stake, 0);
+
   $('bw-amount').textContent = `${fmt(effective)} ₽`;
   $('bw-amount').style.color = effective >= kellyBase ? 'var(--green)' : 'var(--red)';
   $('bw-base').textContent   = `${fmt(kellyBase)} ₽`;
   $('bw-delta').textContent  = settled.length ? `${sign}${fmt(pnl)} ₽` : '—';
   $('bw-delta').style.color  = pnl > 0 ? 'var(--green)' : pnl < 0 ? 'var(--red)' : 'var(--muted)';
+  const inPlayEl = $('bw-inplay');
+  if (inPlayEl) {
+    inPlayEl.textContent = inPlay > 0 ? `В игре: ${fmt(inPlay)} ₽` : '';
+    inPlayEl.style.display = inPlay > 0 ? '' : 'none';
+  }
   renderChart(settled);
 }
 
@@ -857,6 +887,7 @@ function applyBalance() {
     currentBalance = Math.max(currentBalance - newStake, 0);
     t.stakeDeducted = true;
   });
+  normalizeStakes();
 
   saveState();
   renderBalanceWidget();
@@ -1062,7 +1093,7 @@ function trackExpress(idx) {
 
 // ══ Tracker ═══════════════════════════════════════════════════════════════════
 function trackBet(info) {
-  if (!currentBalance || currentBalance <= 0) {
+  if (!kellyBase || kellyBase <= 0) {
     toast('Сначала установите баланс в Трекере', 'err');
     showTab('tracker');
     $('bw-input').focus();
@@ -1091,12 +1122,14 @@ function trackBet(info) {
     at:             new Date().toLocaleString('ru')
   };
   tracker.unshift(entry);
+  normalizeStakes();
   saveState();
   renderTracker();
   updateHeader();
   startAutoResult();
   showTab('tracker');
-  toast(`Записана: ${info.label} — ${info.name} | −${fmt(stake)} ₽ | Баланс: ${fmt(currentBalance)} ₽`);
+  const totalPending = tracker.filter(t => t.result === null && t.stakeDeducted).reduce((s, t) => s + t.stake, 0);
+  toast(`Записана: ${info.label} — ${info.name} | Итого в игре: ${fmt(totalPending)} ₽ из ${fmt(kellyBase)} ₽`);
 }
 
 function setResult(id, result) {
