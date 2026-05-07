@@ -215,6 +215,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #tg-box{background:var(--bg-card);border:1px solid var(--border2);border-radius:var(--radius);padding:22px;width:100%;max-width:420px}
 /* ── Score pill ── */
 .score-pill{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.07);color:var(--text);margin-left:6px}
+/* ── Sort bar ── */
+.sort-bar{display:flex;gap:5px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+/* ── League filter ── */
+.lg-bar{display:flex;gap:4px;flex-wrap:wrap;padding:6px 10px;border-bottom:1px solid var(--border)}
+.lg-btn{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+.lg-btn:hover{border-color:var(--border2);color:var(--text)}
+.lg-btn.act{background:rgba(88,166,255,.15);border-color:rgba(88,166,255,.4);color:var(--blue)}
+/* ── TG log ── */
+.tg-log-item{font-size:11px;padding:5px 0;border-bottom:1px solid var(--border);color:var(--text);line-height:1.4}
+.tg-log-item:last-child{border-bottom:none}
 </style>
 </head>
 <body>
@@ -272,6 +282,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <button class="btn-red" onclick="clearTgSettings()" title="Удалить настройки"><i class="fa-solid fa-trash"></i></button>
     </div>
     <div id="tg-status" style="margin-top:10px;font-size:12px;min-height:18px"></div>
+    <div id="tg-log-section" style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;display:none">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+        <span>История уведомлений</span>
+        <button onclick="clearTgLog()" style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:0">очистить</button>
+      </div>
+      <div id="tg-log-list" style="max-height:130px;overflow-y:auto"></div>
+    </div>
   </div>
 </div>
 
@@ -295,7 +312,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       </div>
     </div>
     <div id="fb-body">
-      <div id="fb-list" style="max-height:270px;overflow-y:auto;border-top:1px solid var(--border)">
+      <div style="padding:6px 10px;border-top:1px solid var(--border)">
+        <input id="fb-search" class="fc" style="font-size:12px;padding:5px 9px!important" placeholder="🔍 Поиск команды…" oninput="fbSearch=this.value;renderFbList()">
+      </div>
+      <div class="lg-bar" id="lg-bar" style="display:none"></div>
+      <div id="fb-list" style="max-height:210px;overflow-y:auto;border-top:1px solid var(--border)">
         <div class="empty" style="padding:18px 16px;font-size:12px"><i class="fa-solid fa-futbol" style="font-size:22px"></i>Загрузка матчей…</div>
       </div>
     </div>
@@ -393,6 +414,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
   <!-- ── Матчи ── -->
   <div class="tab-pane active" id="tab-matches">
+    <div class="sort-bar" id="sort-bar" style="display:none">
+      <span style="font-size:11px;color:var(--muted)">Сорт:</span>
+      <button class="tf-btn act" id="sort-added" onclick="setMatchSort('added')">По добавлению</button>
+      <button class="tf-btn" id="sort-grade" onclick="setMatchSort('grade')">Грейд ↑</button>
+    </div>
     <div id="saved-matches">
       <div class="empty"><i class="fa-solid fa-inbox"></i>Добавьте матч для анализа</div>
     </div>
@@ -438,9 +464,17 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="tsc"><label>ROI</label><div class="tv" id="ts-roi">—</div></div>
       <div class="tsc"><label>Прибыль</label><div class="tv" id="ts-profit">—</div></div>
     </div>
+    <div id="pnl-detail" style="font-size:11px;color:var(--muted);text-align:center;margin:-4px 0 10px;display:none">
+      Поставлено: <b id="pnl-staked" style="color:var(--text)">—</b> ₽
+      &nbsp;·&nbsp; В ожидании: <b id="pnl-pending" style="color:var(--yellow)">0</b>
+      &nbsp;·&nbsp; Авто-обновл.: <span id="auto-check-time">—</span>
+    </div>
 
-    <!-- Check results button -->
-    <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+    <!-- Check results + export buttons -->
+    <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:6px">
+      <button class="btn-sm btn-outline" onclick="exportCSV()" title="Экспорт ставок в CSV" style="font-size:11px">
+        <i class="fa-solid fa-download"></i> CSV
+      </button>
       <button class="btn-sm btn-outline" id="btn-check-res" onclick="checkResults()" style="display:none;font-size:11px">
         <i class="fa-solid fa-rotate" id="cr-spin"></i> Проверить результаты
       </button>
@@ -463,6 +497,19 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
     <div id="tracker-list">
       <div class="empty"><i class="fa-solid fa-bookmark"></i>Нажмите <i class="fa-solid fa-bookmark" style="color:var(--blue)"></i> на ставке чтобы добавить в трекер</div>
+    </div>
+
+    <!-- Grade stats -->
+    <div id="grade-section" style="display:none;margin-top:8px">
+      <div class="ptitle" style="cursor:pointer" onclick="toggleGradeStats()">
+        <i class="fa-solid fa-chart-pie"></i> По грейдам
+        <i class="fa-solid fa-chevron-down" id="grade-chevron" style="margin-left:auto;font-size:9px;transition:transform .2s"></i>
+      </div>
+      <div id="grade-body" style="display:none">
+        <table class="mkt-tbl"><thead><tr>
+          <th>Грейд</th><th>Ставок</th><th>Выиграл</th><th>Win%</th><th>ROI</th>
+        </tr></thead><tbody id="grade-tbody"></tbody></table>
+      </div>
     </div>
 
     <!-- Market stats -->
@@ -509,6 +556,12 @@ let fbAnalyzed = {}; // espn_id → grade  (for value badges in today list)
 let scoreCache = {}; // espn_id → {state, home_score, away_score}
 let lastFbEspnId = null; // set when user selects a match from today panel
 let tgNotified = new Set(); // dedup keys (espn_id or match id) already sent to Telegram
+let tgLog = []; // [{text, time, grade}] — last 10 TG notifications
+let matchSort = 'added'; // 'added' | 'grade'
+let fbSearch = '';
+let fbLeague = '';
+let autoResultTimer = null;
+const LS_TG_LOG = 'ba_tg_log';
 
 // ══ LS helpers ═══════════════════════════════════════════════════════════════
 const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
@@ -546,6 +599,7 @@ function openTgModal() {
   $('tg-chat').value  = tgChatId;
   $('tg-grade').value = tgMinGrade;
   $('tg-status').textContent = '';
+  renderTgLog();
   $('tg-modal').classList.add('open');
 }
 
@@ -885,9 +939,16 @@ function matchCardHtml(m) {
 }
 
 function renderMatches() {
-  $('saved-matches').innerHTML = matches.length
-    ? matches.slice().reverse().map(matchCardHtml).join('')
-    : `<div class="empty"><i class="fa-solid fa-inbox"></i>Добавьте матч для анализа</div>`;
+  const sb = $('sort-bar');
+  if (!matches.length) {
+    $('saved-matches').innerHTML = `<div class="empty"><i class="fa-solid fa-inbox"></i>Добавьте матч для анализа</div>`;
+    if (sb) sb.style.display = 'none';
+    return;
+  }
+  if (sb) sb.style.display = 'flex';
+  let sorted = matches.slice().reverse();
+  if (matchSort === 'grade') sorted.sort((a, b) => (GRADE_ORDER[a.best?.grade]??4) - (GRADE_ORDER[b.best?.grade]??4));
+  $('saved-matches').innerHTML = sorted.map(matchCardHtml).join('');
 }
 
 // ══ Express ═══════════════════════════════════════════════════════════════════
@@ -1029,6 +1090,7 @@ function trackBet(info) {
   saveState();
   renderTracker();
   updateHeader();
+  startAutoResult();
   showTab('tracker');
   toast(`Записана: ${info.label} — ${info.name} | −${fmt(stake)} ₽ | Баланс: ${fmt(currentBalance)} ₽`);
 }
@@ -1222,6 +1284,15 @@ function renderTracker() {
   $('ts-profit').textContent = totalStake ? (profit >= 0 ? '+' : '') + fmt(profit) + ' ₽' : '—';
   $('ts-profit').style.color = profit >= 0 ? 'var(--green)' : 'var(--red)';
 
+  // P&L detail row
+  const pnlEl = $('pnl-detail');
+  if (pnlEl && tracker.length) {
+    pnlEl.style.display = 'block';
+    $('pnl-staked').textContent  = totalStake ? fmt(totalStake) : '—';
+    $('pnl-pending').textContent = tracker.filter(t => t.result === null).length;
+  }
+
+  renderGradeStats();
   renderMarketStats();
 
   updateCheckBtn();
@@ -1389,6 +1460,7 @@ function addMatch() {
     if (data.match.best && shouldNotify(data.match.best.grade) && !tgNotified.has(_tgKey)) {
       tgNotified.add(_tgKey);
       sendTelegram(buildTgMessage(data.match));
+      addToTgLog(`${payload.home_team} — ${payload.away_team}: ${data.match.best.name} @ ${data.match.best.odd}`, data.match.best.grade);
     }
   })
   .catch(() => toast('Ошибка сети', 'err'))
@@ -1489,6 +1561,198 @@ function refreshFbBadges() {
   });
 }
 
+// ══ TG Log ════════════════════════════════════════════════════════════════════
+function loadTgLog() {
+  const saved = lsGet(LS_TG_LOG);
+  if (Array.isArray(saved)) tgLog = saved;
+}
+
+function addToTgLog(text, grade) {
+  const time = new Date().toLocaleString('ru', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  tgLog.unshift({text, time, grade: grade || ''});
+  if (tgLog.length > 10) tgLog = tgLog.slice(0, 10);
+  lsSet(LS_TG_LOG, tgLog);
+}
+
+function renderTgLog() {
+  const section = $('tg-log-section');
+  const list    = $('tg-log-list');
+  if (!section || !list) return;
+  if (!tgLog.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  list.innerHTML = tgLog.map(e => `
+    <div class="tg-log-item">
+      <span style="color:var(--muted);font-size:10px">${e.time}</span>
+      ${e.grade ? ` ${grHtml(e.grade)}` : ''}
+      <span style="margin-left:4px">${e.text}</span>
+    </div>`).join('');
+}
+
+function clearTgLog() {
+  tgLog = [];
+  lsSet(LS_TG_LOG, []);
+  renderTgLog();
+}
+
+// ══ Match sort ════════════════════════════════════════════════════════════════
+function setMatchSort(s) {
+  matchSort = s;
+  ['added','grade'].forEach(k => $(`sort-${k}`)?.classList.toggle('act', k === s));
+  renderMatches();
+}
+
+// ══ League filter ════════════════════════════════════════════════════════════
+const POPULAR_LEAGUES = [
+  {label:'АПЛ',         key:'premier league'},
+  {label:'Ла Лига',     key:'la liga'},
+  {label:'Бундеслига',  key:'bundesliga'},
+  {label:'Серия А',     key:'serie a'},
+  {label:'Лига 1',      key:'ligue 1'},
+  {label:'ЛЧ',          key:'champions league'},
+  {label:'ЛЕ',          key:'europa league'},
+  {label:'КЛ',          key:'conference league'},
+  {label:'РПЛ',         key:'russian premier'},
+  {label:'МЛС',         key:'major league soccer'},
+];
+
+function setLeague(key) {
+  fbLeague = key;
+  renderLeagueBar();
+  renderFbList();
+}
+
+function renderLeagueBar() {
+  const bar = $('lg-bar');
+  if (!bar || !fbMatches.length) { if (bar) bar.style.display = 'none'; return; }
+  const lc = new Set(fbMatches.map(m => (m.league || '').toLowerCase()));
+  const avail = POPULAR_LEAGUES.filter(lg => [...lc].some(l => l.includes(lg.key)));
+  if (!avail.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML =
+    `<button class="lg-btn ${fbLeague===''?'act':''}" onclick="setLeague('')">Все</button>` +
+    avail.map(lg => `<button class="lg-btn ${fbLeague===lg.key?'act':''}" onclick="setLeague('${lg.key}')">${lg.label}</button>`).join('');
+}
+
+function renderFbList() {
+  let list = fbMatches;
+  if (fbSearch) {
+    const q = fbSearch.toLowerCase();
+    list = list.filter(m => m.home.toLowerCase().includes(q) || m.away.toLowerCase().includes(q));
+  }
+  if (fbLeague) {
+    list = list.filter(m => (m.league||'').toLowerCase().includes(fbLeague));
+  }
+  if (!list.length) {
+    $('fb-list').innerHTML = '<div class="empty" style="padding:14px;font-size:12px"><i class="fa-solid fa-magnifying-glass"></i> Нет матчей</div>';
+    return;
+  }
+  $('fb-list').innerHTML = list.map(m => {
+    const i = fbMatches.indexOf(m);
+    return `
+    <div class="fb-match" id="fbm-${i}" onclick="selectFbMatch(${i})">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:600;font-size:12px">${m.home} — ${m.away}</span>
+        <span style="font-size:11px;color:var(--blue);font-weight:700">${m.time}</span>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px">${m.league || ''}</div>
+    </div>`;
+  }).join('');
+  refreshFbBadges();
+}
+
+// ══ Auto result polling ═══════════════════════════════════════════════════════
+function startAutoResult() {
+  if (autoResultTimer) return;
+  if (!tracker.some(t => t.result === null && t.espn_id)) return;
+  autoResultTimer = setInterval(autoCheckResults, 120000);
+}
+
+function stopAutoResult() {
+  if (autoResultTimer) { clearInterval(autoResultTimer); autoResultTimer = null; }
+}
+
+async function autoCheckResults() {
+  const pending = tracker.filter(t => t.result === null && t.espn_id);
+  if (!pending.length) { stopAutoResult(); return; }
+  try {
+    const ids = [...new Set(pending.map(t => t.espn_id))];
+    const r = await fetch('/check_results', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({event_ids: ids})
+    });
+    const data = await r.json();
+    let changed = false;
+    for (const [eid, info] of Object.entries(data)) {
+      if (info.home_score != null) {
+        const prev = scoreCache[eid];
+        if (!prev || prev.home_score !== info.home_score || prev.away_score !== info.away_score || prev.state !== info.state) {
+          scoreCache[eid] = info;
+          changed = true;
+        }
+      }
+    }
+    if (changed) { renderTracker(); toast('Счёт обновлён автоматически'); }
+    const el = $('auto-check-time');
+    if (el) el.textContent = new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+  } catch { /* silent */ }
+}
+
+// ══ Grade stats ═══════════════════════════════════════════════════════════════
+function renderGradeStats() {
+  const settled = tracker.filter(t => t.result !== null && t.grade);
+  const section = $('grade-section');
+  if (!settled.length) { if (section) section.style.display = 'none'; return; }
+  if (section) section.style.display = 'block';
+  const gm = {};
+  settled.forEach(t => {
+    if (!gm[t.grade]) gm[t.grade] = {bets:0, wins:0, stake:0, ret:0};
+    gm[t.grade].bets++;
+    gm[t.grade].stake += t.stake;
+    if (t.result === 'W') { gm[t.grade].wins++; gm[t.grade].ret += t.stake * t.odd; }
+  });
+  const rows = ['A','B','C','D'].filter(g => gm[g]).map(g => {
+    const s = gm[g];
+    const wr  = (s.wins / s.bets * 100).toFixed(0);
+    const roi = s.stake ? ((s.ret - s.stake) / s.stake * 100).toFixed(1) : '—';
+    return `<tr>
+      <td>${grHtml(g)}</td><td>${s.bets}</td><td>${s.wins}</td>
+      <td style="color:${wr>=55?'var(--green)':wr>=40?'var(--yellow)':'var(--red)'}">${wr}%</td>
+      <td style="color:${parseFloat(roi)>0?'var(--green)':parseFloat(roi)<0?'var(--red)':'var(--muted)'}">${roi!=='—'?(parseFloat(roi)>0?'+':'')+roi+'%':'—'}</td>
+    </tr>`;
+  }).join('');
+  const tbody = $('grade-tbody');
+  if (tbody) tbody.innerHTML = rows;
+}
+
+function toggleGradeStats() {
+  const body = $('grade-body'), chev = $('grade-chevron');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (chev) chev.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+// ══ CSV Export ════════════════════════════════════════════════════════════════
+function exportCSV() {
+  if (!tracker.length) { toast('Нет ставок для экспорта', 'err'); return; }
+  const hdr = ['Дата','Матч','Маркет','Кэф','Вер%','Kelly%','Грейд','Ставка','Результат','P&L'];
+  const rows = tracker.map(t => {
+    const pnl = t.result==='W' ? Math.round(t.stake*(t.odd-1)) : t.result==='L' ? -t.stake : '';
+    const lbl = t.type==='express' ? `Экспресс (${t.legs.length} события)` : t.label;
+    const nm  = t.type==='express' ? 'Экспресс' : t.name;
+    return [t.at, lbl, nm, t.odd, t.prob||'', t.kelly||'', t.grade, t.stake,
+      t.result==='W'?'Выиграл':t.result==='L'?'Проиграл':'Ожидание', pnl]
+      .map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',');
+  });
+  const csv = [hdr.join(','), ...rows].join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'})),
+    download: `betanalytica_${new Date().toISOString().slice(0,10)}.csv`
+  });
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  toast('CSV экспортирован');
+}
+
 // ══ Init from LocalStorage ════════════════════════════════════════════════════
 function initFromStorage() {
   const savedM   = lsGet(LS_M);
@@ -1515,8 +1779,10 @@ function initFromStorage() {
   }
 
   loadTgSettings();
+  loadTgLog();
   renderTracker();
   updateHeader();
+  startAutoResult();
   setTimeout(loadTodayMatches, 400);
 }
 
@@ -1544,19 +1810,16 @@ async function loadTodayMatches(force) {
       return;
     }
     fbMatches = data.matches || [];
+    fbLeague = ''; fbSearch = '';
+    const searchEl = $('fb-search'); if (searchEl) searchEl.value = '';
     $('fb-count').textContent = fbMatches.length ? `(${fbMatches.length})` : '';
     if (!fbMatches.length) {
       $('fb-list').innerHTML = '<div class="empty" style="padding:16px;font-size:12px"><i class="fa-solid fa-calendar-xmark"></i>Нет матчей на сегодня</div>';
+      const lgBar = $('lg-bar'); if (lgBar) lgBar.style.display = 'none';
       return;
     }
-    $('fb-list').innerHTML = fbMatches.map((m, i) => `
-      <div class="fb-match" id="fbm-${i}" onclick="selectFbMatch(${i})">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-weight:600;font-size:12px">${m.home} — ${m.away}</span>
-          <span style="font-size:11px;color:var(--blue);font-weight:700">${m.time}</span>
-        </div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px">${m.country ? m.country + ' · ' : ''}${m.league}</div>
-      </div>`).join('');
+    renderLeagueBar();
+    renderFbList();
   } catch {
     $('fb-list').innerHTML = '<div class="empty" style="padding:16px;font-size:12px"><i class="fa-solid fa-triangle-exclamation"></i>Ошибка загрузки</div>';
   } finally {

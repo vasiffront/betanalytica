@@ -478,8 +478,10 @@ def football_today():
     try:
         r = _req.get(f'{_ESPN}?dates={today.replace("-","")}&limit=200', timeout=10)
         r.raise_for_status()
+        resp = r.json()
+        league_map = {str(lg.get('id', '')): (lg.get('name') or '') for lg in (resp.get('leagues') or [])}
         matches = []
-        for ev in r.json().get('events', []):
+        for ev in resp.get('events', []):
             try:
                 comp = (ev.get('competitions') or [{}])[0]
                 if not isinstance(comp, dict):
@@ -496,6 +498,12 @@ def football_today():
                     t = datetime.fromisoformat(ts.replace('Z', '+00:00')).astimezone(_MSK).strftime('%H:%M')
                 except Exception:
                     t = '—'
+                uid = ev.get('uid', '')
+                lg_id = uid.split('~l:')[1].split('~')[0] if '~l:' in uid else ''
+                lg_name = league_map.get(lg_id) or ''
+                if not lg_name:
+                    notes = comp.get('notes') or []
+                    lg_name = (notes[0].get('headline') or '') if notes else ''
                 matches.append({
                     'home':      (home.get('team') or {}).get('displayName', ''),
                     'away':      (away.get('team') or {}).get('displayName', ''),
@@ -503,7 +511,7 @@ def football_today():
                     'away_id':   (away.get('team') or {}).get('id', ''),
                     'home_form': home.get('form') or '',
                     'away_form': away.get('form') or '',
-                    'league':    '',
+                    'league':    lg_name,
                     'country':   '',
                     'time':      t,
                     'espn_id':   ev.get('id', ''),
