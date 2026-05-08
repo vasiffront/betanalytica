@@ -289,7 +289,6 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
     lh, la = calculate_lambdas(hs, hc, as_, ac, ng, league)
     lh = form_adjustment(lh, fh)
     la = form_adjustment(la, fa)
-    lh, la = home_away_bias(lh, la)
     lh = round(max(min(lh * h2h[0], 4.5), 0.50), 4)
     la = round(max(min(la * h2h[1], 4.5), 0.50), 4)
 
