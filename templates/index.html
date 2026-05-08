@@ -391,6 +391,9 @@ html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
   <button class="sb-item" id="sb-tracker" onclick="showTab('tracker')" title="Трекер">
     <i class="fa-solid fa-bookmark"></i>Трекер
   </button>
+  <button class="sb-item" id="sb-stats" onclick="showTab('stats')" title="Статистика">
+    <i class="fa-solid fa-chart-pie"></i>Стат
+  </button>
   <div class="sb-sep"></div>
   <div class="sb-bal" id="sb-bal-block" style="display:none">
     <span style="display:block;margin-bottom:1px">Банк</span>
@@ -534,6 +537,7 @@ html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
     <button class="tab-btn active" onclick="showTab('matches')" id="tb-matches">Матчи <span id="tb-mc"></span></button>
     <button class="tab-btn" onclick="showTab('express')" id="tb-express">Экспрессы</button>
     <button class="tab-btn" onclick="showTab('tracker')" id="tb-tracker">Трекер <span id="tb-tc"></span></button>
+    <button class="tab-btn" onclick="showTab('stats')" id="tb-stats"><i class="fa-solid fa-chart-pie" style="font-size:11px;margin-right:4px"></i>Статистика</button>
   </div>
 
   <!-- ── Матчи ── -->
@@ -632,8 +636,16 @@ html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
       <div class="empty"><i class="fa-solid fa-bookmark"></i>Нажмите <i class="fa-solid fa-bookmark" style="color:var(--blue)"></i> на ставке чтобы добавить в трекер</div>
     </div>
 
+    </div>
+
+  <!-- ── Статистика ── -->
+  <div class="tab-pane" id="tab-stats">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;text-align:center">
+      Статистика строится по всем ставкам в трекере
+    </div>
+
     <!-- Grade stats -->
-    <div id="grade-section" style="display:none;margin-top:8px">
+    <div id="grade-section" style="display:none;margin-bottom:12px">
       <div class="ptitle" style="cursor:pointer" onclick="toggleGradeStats()">
         <i class="fa-solid fa-chart-pie"></i> По грейдам
         <i class="fa-solid fa-chevron-down" id="grade-chevron" style="margin-left:auto;font-size:9px;transition:transform .2s"></i>
@@ -646,9 +658,9 @@ html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
     </div>
 
     <!-- Market stats -->
-    <div id="mkt-section" style="display:none;margin-top:12px">
+    <div id="mkt-section" style="display:none;margin-bottom:12px">
       <div class="ptitle" style="cursor:pointer" onclick="toggleMktStats()">
-        <i class="fa-solid fa-chart-bar"></i> Статистика по маркетам
+        <i class="fa-solid fa-chart-bar"></i> По маркетам
         <i class="fa-solid fa-chevron-down" id="mkt-chevron" style="margin-left:auto;font-size:9px;transition:transform .2s"></i>
       </div>
       <div id="mkt-body" style="display:none">
@@ -659,7 +671,7 @@ html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
     </div>
 
     <!-- Daily P&L -->
-    <div id="daily-section" style="display:none;margin-top:12px">
+    <div id="daily-section" style="display:none;margin-bottom:12px">
       <div class="ptitle" style="cursor:pointer" onclick="toggleDailyStats()">
         <i class="fa-solid fa-calendar-week"></i> P&amp;L по дням
         <i class="fa-solid fa-chevron-down" id="daily-chevron" style="margin-left:auto;font-size:9px;transition:transform .2s"></i>
@@ -672,7 +684,7 @@ html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
     </div>
 
     <!-- Model calibration -->
-    <div id="calib-section" style="display:none;margin-top:12px">
+    <div id="calib-section" style="display:none;margin-bottom:12px">
       <div class="ptitle" style="cursor:pointer" onclick="toggleCalib()">
         <i class="fa-solid fa-bullseye"></i> Калибровка модели
         <i class="fa-solid fa-chevron-down" id="calib-chevron" style="margin-left:auto;font-size:9px;transition:transform .2s"></i>
@@ -686,6 +698,8 @@ html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
         </tr></thead><tbody id="calib-tbody"></tbody></table>
       </div>
     </div>
+
+    <div id="stats-empty" style="display:none" class="empty"><i class="fa-solid fa-chart-pie"></i>Добавьте ставки в трекер чтобы увидеть статистику</div>
   </div>
 
 </div>
@@ -731,6 +745,8 @@ let lastFbMatchTime = null; // MSK time string ("20:30") of last selected today-
 const LS_TG_LOG    = 'ba_tg_log';
 const LS_MKT_OPEN  = 'ba_mkt_open';
 const LS_GRADE_OPEN = 'ba_grade_open';
+const LS_CDAYS     = 'ba_collapsed_days';
+let collapsedDays  = new Set();
 
 // ══ Theme ════════════════════════════════════════════════════════════════════
 function toggleTheme() {
@@ -752,6 +768,7 @@ function updateThemeBtn(theme) {
 // ══ LS helpers ═══════════════════════════════════════════════════════════════
 const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
 const lsSet = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+collapsedDays = new Set(lsGet(LS_CDAYS) || []);
 
 function saveState() {
   lsSet(LS_M,     matches);
@@ -903,13 +920,14 @@ function normalizeStakes() {
 
 // ══ Tabs ═════════════════════════════════════════════════════════════════════
 function showTab(name) {
-  ['matches','express','tracker'].forEach(t => {
+  ['matches','express','tracker','stats'].forEach(t => {
     $(`tab-${t}`).classList.toggle('active', t === name);
     $(`tb-${t}`).classList.toggle('active', t === name);
     const sb = $(`sb-${t}`);
     if (sb) sb.classList.toggle('active', t === name);
   });
   if (name === 'express') fetchExpress();
+  if (name === 'stats') renderAllStats();
   const msb = $('mobile-stats-bar');
   if (msb) msb.classList.toggle('visible', name === 'tracker');
 }
@@ -1607,6 +1625,13 @@ function deleteMatch(id) {
   if (matches.length >= 2 && $('tab-express').classList.contains('active')) fetchExpress();
 }
 
+function toggleDayGroup(key) {
+  if (collapsedDays.has(key)) collapsedDays.delete(key);
+  else collapsedDays.add(key);
+  lsSet(LS_CDAYS, [...collapsedDays]);
+  renderTracker();
+}
+
 function renderTracker() {
   renderBalanceWidget();
 
@@ -1698,8 +1723,11 @@ function renderTracker() {
     const pc = dayPnl > 0 ? 'var(--green)' : dayPnl < 0 ? 'var(--red)' : 'var(--muted)';
     const dots = bets.map(b => `<div class="tl-dot ${b.result==='W'?'dw':b.result==='L'?'dl':'dp'}"></div>`).join('');
     const settled = bets.filter(b => b.result !== null).length;
-    tlHtml += `<div class="tl-header"><div class="tl-left"><span class="tl-date-label">${date}</span><div class="tl-dots">${dots}</div></div><span class="tl-day-pnl" style="color:${pc}">${settled ? (dayPnl>=0?'+':'') + fmt(dayPnl) + ' ₽' : ''}</span></div>`;
-    tlHtml += bets.map(t => {
+    const collapsed = collapsedDays.has(date);
+    const chevRot = collapsed ? 'rotate(-90deg)' : '';
+    const safeKey = date.replace(/'/g, "\\'");
+    tlHtml += `<div class="tl-header" onclick="toggleDayGroup('${safeKey}')" style="cursor:pointer"><div class="tl-left"><span class="tl-date-label">${date}</span><div class="tl-dots">${dots}</div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><span class="tl-day-pnl" style="color:${pc}">${settled ? (dayPnl>=0?'+':'') + fmt(dayPnl) + ' ₽' : ''}</span><i class="fa-solid fa-chevron-down" style="font-size:9px;color:var(--muted);transition:transform .2s;transform:${chevRot}"></i></div></div>`;
+    if (!collapsed) tlHtml += bets.map(t => {
     const cls = t.result === 'W' ? 'won-bet' : t.result === 'L' ? 'lost-bet' : 'pend-bet';
 
     // ── Общие части ──
@@ -1777,6 +1805,15 @@ function renderTracker() {
     }).join('');
   });
   $('tracker-list').innerHTML = tlHtml;
+}
+
+function renderAllStats() {
+  renderGradeStats(); renderMarketStats(); renderDailyStats(); renderCalibration();
+  const empty = $('stats-empty');
+  if (empty) {
+    const hasData = tracker.filter(t => t.result !== null).length > 0;
+    empty.style.display = hasData ? 'none' : 'block';
+  }
 }
 
 // ══ Add match ═════════════════════════════════════════════════════════════════
