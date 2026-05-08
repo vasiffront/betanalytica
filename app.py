@@ -172,13 +172,15 @@ def confidence_score(ev_val, model_p, market_p, k_raw, odd=2.0):
     return min(max(raw - variance_pen, 0.0), 100.0)
 
 _GRADE_C_WHITELIST = {'ТБ2.5', 'ТБ3.5', 'ОЗ Да'}
+_GRADE_A_ONLY     = {'ТМ2.5', 'ОЗ Нет'}  # historically −ROI at B; require Grade A
 
 def bet_grade(conf, ev_val, name=''):
     if conf >= 68 and ev_val >= 0.08: return "A"
+    if name in _GRADE_A_ONLY: return "D"
     if conf >= 52 and ev_val >= 0.05: return "B"
     # Relaxed B for historically profitable over/btts markets
     if name in _GRADE_C_WHITELIST and conf >= 44 and ev_val >= 0.035: return "B"
-    # Grade C only for whitelisted markets — avoids short-odds traps on ОЗ Нет/ТМ2.5/1X/X2
+    # Grade C only for whitelisted markets — avoids short-odds traps
     if name in _GRADE_C_WHITELIST and conf >= 35 and ev_val >= 0.02: return "C"
     return "D"
 
