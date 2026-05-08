@@ -328,6 +328,8 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
         conf   = confidence_score(ev_val, model_p, market_p, k_raw, odd)
         k_dyn  = dynamic_kelly(k_raw, conf)
         grade  = bet_grade(conf, ev_val)
+        if grade in ('C', 'D'):
+            continue
         vr     = model_p / max(market_p, 0.01)
         bets[name] = {
             'model_prob':  round(model_p  * 100, 1),
