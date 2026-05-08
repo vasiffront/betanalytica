@@ -17,21 +17,22 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 <style>
 :root {
-  --bg:       #0d1117;
-  --bg-card:  #161b22;
-  --bg-card2: #1c2230;
-  --bg-in:    #0d1117;
-  --border:   rgba(255,255,255,.08);
-  --border2:  rgba(255,255,255,.14);
-  --text:     #e6edf3;
-  --muted:    #7d8590;
-  --blue:     #58a6ff;
-  --green:    #3fb950;
-  --yellow:   #d29922;
-  --red:      #f85149;
+  --bg:       #08080f;
+  --bg-card:  #0e0e1c;
+  --bg-card2: #151528;
+  --bg-in:    #0b0b18;
+  --border:   rgba(255,255,255,.07);
+  --border2:  rgba(255,255,255,.13);
+  --text:     #e2e4f0;
+  --muted:    #6b7280;
+  --blue:     #60a5fa;
+  --green:    #34d399;
+  --yellow:   #fbbf24;
+  --red:      #f87171;
   --radius:   12px;
   --rsm:      7px;
-  --purple:   #bc8cff;
+  --purple:   #a78bfa;
+  --accent:   #7c6fe0;
 }
 
 html[data-theme="light"]{
@@ -132,10 +133,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .mcard{background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;transition:transform .2s,box-shadow .2s}
 .mcard.new-card{animation:slideIn .35s cubic-bezier(.25,.46,.45,.94)}
 .mcard:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
-.mcard.ga{border-left:3px solid #2ea043}
-.mcard.gb{border-left:3px solid #1f6feb}
-.mcard.gc{border-left:3px solid #9e6a03}
-.mcard.gd{border-left:3px solid #6e2020}
+.mcard.ga{border-left:3px solid var(--green);box-shadow:0 0 0 1px rgba(52,211,153,.1),0 4px 24px rgba(52,211,153,.07)}
+.mcard.gb{border-left:3px solid var(--accent);box-shadow:0 0 0 1px rgba(124,111,224,.1),0 4px 24px rgba(124,111,224,.06)}
+.mcard.gc{border-left:3px solid var(--yellow)}
+.mcard.gd{border-left:3px solid rgba(248,113,113,.4)}
 .mcard-head{padding:11px 14px 9px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .teams{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
 .vs{font-size:9px;font-weight:700;color:var(--muted);background:rgba(255,255,255,.06);border-radius:3px;padding:2px 4px}
@@ -265,6 +266,48 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 /* ── Match card collapse ── */
 .mc-chev{font-size:9px;color:var(--muted);transition:transform .2s;margin-left:3px;flex-shrink:0}
 .mcard-head{cursor:pointer}
+/* ── Sidebar ── */
+.app-body{display:flex;align-items:flex-start}
+.app-body>.wrap{flex:1;min-width:0}
+.sidebar{width:68px;flex-shrink:0;background:var(--bg-card);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:10px 0;position:sticky;top:0;height:100vh;overflow-y:auto;z-index:50;gap:2px}
+.sb-item{width:52px;height:52px;border-radius:10px;border:none;background:transparent;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;transition:all .15s;padding:0}
+.sb-item:hover{background:rgba(255,255,255,.06);color:var(--text)}
+.sb-item.active{background:rgba(124,111,224,.18);color:var(--accent)}
+.sb-item i{font-size:17px}
+.sb-logo{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;margin-bottom:4px;flex-shrink:0}
+.sb-logo i{font-size:15px;color:#fff}
+.sb-sep{width:32px;height:1px;background:var(--border);margin:4px 0;flex-shrink:0}
+.sb-bal{text-align:center;font-size:8px;color:var(--muted);line-height:1.5;padding:5px 4px;width:60px}
+.sb-bal .sbv{font-size:10px;font-weight:700;color:var(--green);display:block;word-break:break-all}
+@media(max-width:992px){.sidebar{display:none}.app-body{display:block}}
+@media(min-width:993px){ #tg-btn,#theme-toggle{display:none}}
+/* ── Dual probability bars ── */
+.prob-compare{padding:7px 14px 9px;border-bottom:1px solid var(--border)}
+.prob-row{display:flex;align-items:center;gap:8px;font-size:10px;margin-bottom:4px}
+.prob-row:last-child{margin-bottom:0}
+.prob-label{width:44px;color:var(--muted);font-weight:600;flex-shrink:0}
+.prob-track{flex:1;height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
+.prob-fill{height:100%;border-radius:2px;transition:width .5s ease}
+.prob-fill.model-fill{background:linear-gradient(90deg,var(--accent),var(--purple))}
+.prob-fill.market-fill{background:rgba(255,255,255,.22)}
+.prob-val{width:34px;text-align:right;font-weight:700;font-size:11px}
+/* ── Tracker timeline ── */
+.tl-header{display:flex;align-items:center;justify-content:space-between;padding:10px 2px 6px;border-bottom:1px solid var(--border);margin-bottom:6px;margin-top:8px}
+.tl-header:first-child{margin-top:0}
+.tl-left{display:flex;align-items:center;gap:7px}
+.tl-date-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.tl-dots{display:flex;gap:3px;align-items:center}
+.tl-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.tl-dot.dw{background:var(--green)}
+.tl-dot.dl{background:var(--red)}
+.tl-dot.dp{background:var(--yellow);opacity:.7}
+.tl-day-pnl{font-size:11px;font-weight:700}
+/* ── Light theme sidebar/new ── */
+html[data-theme="light"] .sidebar{background:#ffffff;border-right:1px solid rgba(0,0,0,.09)}
+html[data-theme="light"] .sb-item:hover{background:rgba(0,0,0,.05)}
+html[data-theme="light"] .sb-item.active{background:rgba(124,111,224,.12)}
+html[data-theme="light"] .prob-track{background:rgba(0,0,0,.07)}
+html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
 </style>
 </head>
 <body>
@@ -335,6 +378,32 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   </div>
 </div>
 
+<div class="app-body">
+<nav class="sidebar" id="sidebar">
+  <div class="sb-logo"><i class="fa-solid fa-chart-line"></i></div>
+  <div class="sb-sep"></div>
+  <button class="sb-item active" id="sb-matches" onclick="showTab('matches')" title="Матчи">
+    <i class="fa-solid fa-bolt"></i>Матчи
+  </button>
+  <button class="sb-item" id="sb-express" onclick="showTab('express')" title="Экспрессы">
+    <i class="fa-solid fa-layer-group"></i>Экспресс
+  </button>
+  <button class="sb-item" id="sb-tracker" onclick="showTab('tracker')" title="Трекер">
+    <i class="fa-solid fa-bookmark"></i>Трекер
+  </button>
+  <div class="sb-sep"></div>
+  <div class="sb-bal" id="sb-bal-block" style="display:none">
+    <span style="display:block;margin-bottom:1px">Банк</span>
+    <span class="sbv" id="sb-bal-val">—</span>
+  </div>
+  <div style="flex:1"></div>
+  <button class="sb-item" onclick="openTgModal()" title="Telegram уведомления">
+    <i class="fa-brands fa-telegram" id="sb-tg-icon"></i>TG
+  </button>
+  <button class="sb-item" id="sb-theme" onclick="toggleTheme()" title="Тема">
+    <i class="fa-solid fa-sun"></i>Тема
+  </button>
+</nav>
 <div class="wrap">
 <div class="row g-4">
 
@@ -622,6 +691,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 </div>
 </div>
 </div>
+</div>
+</div>
 
 <script>
 // ══ State ═══════════════════════════════════════════════════════════════════
@@ -670,11 +741,12 @@ function toggleTheme() {
   updateThemeBtn(next);
 }
 function updateThemeBtn(theme) {
-  const btn = $('theme-toggle');
-  if (!btn) return;
   const isLight = (theme || document.documentElement.getAttribute('data-theme')) === 'light';
-  btn.innerHTML = isLight ? '<i class="fa-solid fa-moon"></i>' : '<i class="fa-solid fa-sun"></i>';
-  btn.title = isLight ? 'Тёмная тема' : 'Светлая тема';
+  const icon = isLight ? '<i class="fa-solid fa-moon"></i>' : '<i class="fa-solid fa-sun"></i>';
+  const btn = $('theme-toggle');
+  if (btn) { btn.innerHTML = icon; btn.title = isLight ? 'Тёмная тема' : 'Светлая тема'; }
+  const sbBtn = $('sb-theme');
+  if (sbBtn) sbBtn.innerHTML = icon + 'Тема';
 }
 
 // ══ LS helpers ═══════════════════════════════════════════════════════════════
@@ -834,6 +906,8 @@ function showTab(name) {
   ['matches','express','tracker'].forEach(t => {
     $(`tab-${t}`).classList.toggle('active', t === name);
     $(`tb-${t}`).classList.toggle('active', t === name);
+    const sb = $(`sb-${t}`);
+    if (sb) sb.classList.toggle('active', t === name);
   });
   if (name === 'express') fetchExpress();
   const msb = $('mobile-stats-bar');
@@ -863,6 +937,12 @@ function updateHeader() {
     $('hdr-bal').style.color = effective >= kellyBase ? 'var(--green)' : 'var(--red)';
   } else {
     $('hbal-txt').textContent = 'Задать баланс';
+  }
+  // Sync sidebar balance
+  const sbBlock = $('sb-bal-block'), sbVal = $('sb-bal-val');
+  if (sbBlock && kellyBase > 0) {
+    sbBlock.style.display = 'block';
+    if (sbVal) sbVal.textContent = fmt(kellyBase > 999 ? Math.round(kellyBase/1000) + 'к' : kellyBase) + ' ₽';
   }
 }
 
@@ -1099,6 +1179,18 @@ function matchCardHtml(m, isNew=false) {
           <div class="bar-bg"><div class="bar-fill ${isTop?'top':''}" style="width:${Math.min(b.prob,100)}%"></div></div>
           <span style="color:var(--text);font-weight:600">${b.prob}%</span>
         </div>
+        ${isTop ? `<div class="prob-compare">
+          <div class="prob-row">
+            <span class="prob-label">Модель</span>
+            <div class="prob-track"><div class="prob-fill model-fill" style="width:${Math.min(b.model_prob,100)}%"></div></div>
+            <span class="prob-val" style="color:var(--accent)">${b.model_prob}%</span>
+          </div>
+          <div class="prob-row">
+            <span class="prob-label">Рынок</span>
+            <div class="prob-track"><div class="prob-fill market-fill" style="width:${Math.min(b.market_prob,100)}%"></div></div>
+            <span class="prob-val" style="color:var(--muted)">${b.market_prob}%</span>
+          </div>
+        </div>` : ''}
         <div class="bet-stats">
           <div class="bst"><i class="fa-solid fa-brain" style="font-size:9px"></i> Мод: <span>${b.model_prob}%</span></div>
           <div class="bst"><i class="fa-solid fa-store" style="font-size:9px"></i> Мрк: <span>${b.market_prob}%</span></div>
@@ -1589,7 +1681,25 @@ function renderTracker() {
     return;
   }
 
-  $('tracker-list').innerHTML = visible.map(t => {
+  // Group by date
+  const byDate = {};
+  visible.forEach(t => {
+    const dk = t.at ? t.at.split(',')[0].trim() : 'Без даты';
+    if (!byDate[dk]) byDate[dk] = [];
+    byDate[dk].push(t);
+  });
+  let tlHtml = '';
+  Object.entries(byDate).forEach(([date, bets]) => {
+    const dayPnl = bets.reduce((s, t) => {
+      if (t.result === 'W') return s + Math.round(t.stake * (t.odd - 1));
+      if (t.result === 'L') return s - t.stake;
+      return s;
+    }, 0);
+    const pc = dayPnl > 0 ? 'var(--green)' : dayPnl < 0 ? 'var(--red)' : 'var(--muted)';
+    const dots = bets.map(b => `<div class="tl-dot ${b.result==='W'?'dw':b.result==='L'?'dl':'dp'}"></div>`).join('');
+    const settled = bets.filter(b => b.result !== null).length;
+    tlHtml += `<div class="tl-header"><div class="tl-left"><span class="tl-date-label">${date}</span><div class="tl-dots">${dots}</div></div><span class="tl-day-pnl" style="color:${pc}">${settled ? (dayPnl>=0?'+':'') + fmt(dayPnl) + ' ₽' : ''}</span></div>`;
+    tlHtml += bets.map(t => {
     const cls = t.result === 'W' ? 'won-bet' : t.result === 'L' ? 'lost-bet' : 'pend-bet';
 
     // ── Общие части ──
@@ -1664,7 +1774,9 @@ function renderTracker() {
       </div>
       <div class="tbet-actions">${actBtns}</div>
     </div>`;
-  }).join('');
+    }).join('');
+  });
+  $('tracker-list').innerHTML = tlHtml;
 }
 
 // ══ Add match ═════════════════════════════════════════════════════════════════
