@@ -174,10 +174,15 @@ def confidence_score(ev_val, model_p, market_p, k_raw, odd=2.0):
 
     return min(max(raw - variance_pen, 0.0), 100.0)
 
-def bet_grade(conf, ev_val):
+_GRADE_C_WHITELIST = {'ТБ2.5', 'ТБ3.5', 'ОЗ Да'}
+
+def bet_grade(conf, ev_val, name=''):
     if conf >= 68 and ev_val >= 0.08: return "A"
     if conf >= 52 and ev_val >= 0.05: return "B"
-    if conf >= 35 and ev_val >= 0.02: return "C"
+    # Relaxed B for historically profitable over/btts markets
+    if name in _GRADE_C_WHITELIST and conf >= 44 and ev_val >= 0.035: return "B"
+    # Grade C only for whitelisted markets — avoids short-odds traps on ОЗ Нет/ТМ2.5/1X/X2
+    if name in _GRADE_C_WHITELIST and conf >= 35 and ev_val >= 0.02: return "C"
     return "D"
 
 # ─── ESPN team stats helper ───────────────────────────────────────────────────
@@ -300,8 +305,8 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
         ('П1',  p1,       oh,  mp(oh)),
         ('X',   px,       ox,  mp(ox)),
         ('П2',  p2,       oa,  mp(oa)),
-        ('1X',  p1 + px,  o1x, mp(o1x)),
-        ('X2',  px + p2,  ox2, mp(ox2)),
+        ('1X',  p1 + px,  o1x, mp(oh) + mp(ox)),
+        ('X2',  px + p2,  ox2, mp(ox) + mp(oa)),
     ]
     p_tb25     = sum(p for (h, a), p in probs.items() if h + a >= 3)
     p_tb35     = sum(p for (h, a), p in probs.items() if h + a >= 4)
@@ -326,8 +331,8 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
         k_raw  = kelly_fraction(h_prob, odd)
         conf   = confidence_score(ev_val, model_p, market_p, k_raw, odd)
         k_dyn  = dynamic_kelly(k_raw, conf)
-        grade  = bet_grade(conf, ev_val)
-        if grade in ('C', 'D'):
+        grade  = bet_grade(conf, ev_val, name)
+        if grade == 'D':
             continue
         vr     = model_p / max(market_p, 0.01)
         bets[name] = {
