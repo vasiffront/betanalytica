@@ -110,9 +110,6 @@ def form_adjustment(lmbd, form_pts):
     factor = 1.0 + (form_pts - 7.5) / 37.5
     return lmbd * max(factor, 0.50)
 
-def home_away_bias(lh, la):
-    return lh * 1.08, la * 0.93
-
 # ─── Market & EV ─────────────────────────────────────────────────────────────
 
 def calc_vig(oh, ox, oa):
@@ -275,6 +272,10 @@ def get_h2h_factor(home_id, away_id, max_meetings=10):
 
 def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, league='', h2h=(1.0, 1.0)):
     """Run full Poisson + EV analysis. Returns match_data dict ready for SAVED_MATCHES."""
+    if not (odds.get('oh') and odds.get('ox') and odds.get('oa')):
+        return {'id': str(uuid.uuid4()), 'home': home_team, 'away': away_team,
+                'lh': 0, 'la': 0, 'vig': 0, 'best': None, 'top3': []}
+
     def _o(key, default=2.0):
         val = odds.get(key)
         try: return max(float(val), 1.01) if val else default
