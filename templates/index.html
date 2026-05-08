@@ -294,14 +294,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 /* ── Tracker timeline ── */
 .tl-header{display:flex;align-items:center;justify-content:space-between;padding:10px 2px 6px;border-bottom:1px solid var(--border);margin-bottom:6px;margin-top:8px}
 .tl-header:first-child{margin-top:0}
-.tl-left{display:flex;align-items:center;gap:7px}
-.tl-date-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.tl-dots{display:flex;gap:3px;align-items:center}
+.tl-left{display:flex;align-items:flex-start;gap:7px;min-width:0;flex:1}
+.tl-date-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;flex-shrink:0}
+.tl-dots{display:flex;flex-wrap:wrap;gap:3px;align-items:center}
 .tl-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .tl-dot.dw{background:var(--green)}
 .tl-dot.dl{background:var(--red)}
 .tl-dot.dp{background:var(--yellow);opacity:.7}
-.tl-day-pnl{font-size:11px;font-weight:700}
+.tl-day-pnl{font-size:11px;font-weight:700;flex-shrink:0;margin-left:6px}
 /* ── Light theme sidebar/new ── */
 html[data-theme="light"] .sidebar{background:#ffffff;border-right:1px solid rgba(0,0,0,.09)}
 html[data-theme="light"] .sb-item:hover{background:rgba(0,0,0,.05)}
