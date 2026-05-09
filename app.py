@@ -172,7 +172,7 @@ def confidence_score(ev_val, model_p, market_p, k_raw, odd=2.0):
     return min(max(raw - variance_pen, 0.0), 100.0)
 
 _GRADE_C_WHITELIST = {'ТБ2.5', 'ТБ3.5', 'ОЗ Да'}
-_GRADE_A_ONLY     = {'ТМ2.5', 'ОЗ Нет'}  # historically −ROI at B; require Grade A
+_GRADE_A_ONLY     = {'ТМ2.5', 'ОЗ Нет', 'X2'}  # historically −ROI at B; require Grade A
 
 def bet_grade(conf, ev_val, name=''):
     if conf >= 68 and ev_val >= 0.08: return "A"
@@ -327,6 +327,8 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
 
     bets = {}
     for name, model_p, odd, market_p in markets:
+        if name == '1X' and odd < 1.35:
+            continue
         h_prob = hybrid_prob(model_p, market_p)
         ev_val = calc_ev(h_prob, odd)
         if ev_val <= 0:
@@ -701,6 +703,7 @@ def football_today():
                     notes = comp.get('notes') or []
                     lg_name = (notes[0].get('headline') or '') if notes else ''
                 ev_state = _g(comp, 'status', 'type', 'state') or 'pre'
+                ev_clock = _g(comp, 'status', 'type', 'shortDetail') if ev_state == 'in' else None
                 matches.append({
                     'home':       (home.get('team') or {}).get('displayName', ''),
                     'away':       (away.get('team') or {}).get('displayName', ''),
@@ -715,6 +718,7 @@ def football_today():
                     'state':      ev_state,
                     'home_score': home.get('score') if ev_state == 'in' else None,
                     'away_score': away.get('score') if ev_state == 'in' else None,
+                    'clock':      ev_clock,
                     'odds':       _parse_espn_odds(comp),
                 })
             except Exception:
@@ -832,6 +836,7 @@ def check_results():
                 'state':      state or 'unknown',
                 'home_score': home.get('score'),
                 'away_score': away.get('score'),
+                'clock':      _g(comp, 'status', 'type', 'shortDetail') if state == 'in' else None,
             }
         except Exception:
             continue

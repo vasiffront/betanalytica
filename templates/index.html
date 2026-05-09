@@ -716,6 +716,7 @@ let tracker        = [];
 let currentBalance = 0;
 let startBalance   = 0;
 let kellyBase      = 0; // declared bankroll for Kelly sizing — only changes when user sets balance
+let rolloverTs     = 0; // ms timestamp of last daily rollover — bets before this are baked into kellyBase
 let tFilter        = { result: 'all', grade: 'all', date: 'all' };
 let tSortDesc      = true; // true = newest first
 
@@ -777,6 +778,7 @@ function saveState() {
   lsSet(LS_CUR,   currentBalance);
   lsSet(LS_START, startBalance);
   lsSet(LS_KELLY, kellyBase);
+  lsSet('ba_rollover_ts', rolloverTs);
 }
 
 // ══ Telegram ═════════════════════════════════════════════════════════════════
@@ -943,9 +945,9 @@ function updateHeader() {
   const pending = tracker.filter(t => t.result === null).length;
   $('tb-mc').textContent = matches.length ? `(${matches.length})` : '';
   $('tb-tc').textContent = tracker.length ? `(${tracker.length})` : '';
-  // Balance pill — show effective balance (kellyBase ± settled P&L)
+  // Balance pill — show effective balance (kellyBase ± P&L since last rollover)
   if (kellyBase > 0) {
-    const settledPnl = tracker.filter(t => t.result !== null).reduce((acc, t) => {
+    const settledPnl = tracker.filter(t => t.result !== null && (!rolloverTs || (t.ts || 0) >= rolloverTs)).reduce((acc, t) => {
       if (t.result === 'W') return acc + Math.round(t.stake * (t.odd - 1));
       if (t.result === 'L') return acc - t.stake;
       return acc;
@@ -975,8 +977,8 @@ function renderBalanceWidget() {
     return;
   }
 
-  // P&L from settled bets only
-  const settled = tracker.filter(t => t.result !== null);
+  // P&L from settled bets since last daily rollover
+  const settled = tracker.filter(t => t.result !== null && (!rolloverTs || (t.ts || 0) >= rolloverTs));
   let pnl = 0;
   settled.forEach(t => {
     if (t.result === 'W') pnl += Math.round(t.stake * (t.odd - 1));
@@ -1003,7 +1005,7 @@ function renderBalanceWidget() {
 function renderChart(settled) {
   const canvas = $('bw-chart');
   if (!canvas || !kellyBase) { if (canvas) canvas.style.display = 'none'; return; }
-  if (!settled) settled = tracker.filter(t => t.result !== null);
+  if (!settled) settled = tracker.filter(t => t.result !== null && (!rolloverTs || (t.ts || 0) >= rolloverTs));
 
   // Need at least 1 resolved bet to draw anything useful
   if (!settled.length) { canvas.style.display = 'none'; return; }
@@ -1782,7 +1784,7 @@ function renderTracker() {
     // ── Одиночная ставка ──
     const sc = t.espn_id && scoreCache[t.espn_id];
     const scorePill = sc && sc.home_score != null
-      ? `<span class="score-pill">${sc.home_score}:${sc.away_score}${sc.state === 'in' ? ' ●' : ''}</span>`
+      ? `<span class="score-pill">${sc.home_score}:${sc.away_score}${sc.state === 'in' ? ` <span style="font-size:9px;color:var(--green)">${sc.clock || '●'}</span>` : ''}</span>`
       : '';
     const stakeEditPen = t.result === null
       ? `<button style="background:none;border:none;color:var(--muted);font-size:9px;padding:1px 3px;cursor:pointer;vertical-align:middle" onclick="startEditStake(${t.id})" title="Изменить ставку"><i class="fa-solid fa-pen-to-square"></i></button>`
@@ -2096,8 +2098,9 @@ function renderFbList() {
     const scorePart = live
       ? `<span style="color:var(--green);font-weight:800;font-size:12px;margin-left:7px">${m.home_score}:${m.away_score} <span style="font-size:9px;color:var(--green)">●</span></span>`
       : '';
+    const clockStr = m.clock ? m.clock : 'LIVE';
     const timePart = live
-      ? `<span style="font-size:11px;color:var(--green);font-weight:700">LIVE</span>`
+      ? `<span style="font-size:11px;color:var(--green);font-weight:700">${clockStr} <span style="font-size:8px">●</span></span>`
       : `<span style="font-size:11px;color:var(--blue);font-weight:700">${m.time}</span>`;
     return `
     <div class="fb-match${live ? ' fb-live' : ''}" id="fbm-${i}" onclick="selectFbMatch(${i})">
@@ -2167,7 +2170,7 @@ async function autoCheckResults() {
     for (const [eid, info] of Object.entries(data)) {
       if (info.home_score != null) {
         const prev = scoreCache[eid];
-        if (!prev || prev.home_score !== info.home_score || prev.away_score !== info.away_score || prev.state !== info.state) {
+        if (!prev || prev.home_score !== info.home_score || prev.away_score !== info.away_score || prev.state !== info.state || prev.clock !== info.clock) {
           scoreCache[eid] = info;
           changed = true;
         }
@@ -2329,6 +2332,57 @@ function exportCSV() {
   toast('CSV экспортирован');
 }
 
+// ══ Daily bankroll rollover ═══════════════════════════════════════════════════
+function getMoscowDateStr() {
+  return new Date().toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' });
+}
+
+function doRollover() {
+  if (!kellyBase) return;
+  const sinceRollover = tracker.filter(t => t.result !== null && (!rolloverTs || (t.ts || 0) >= rolloverTs));
+  const pnl = sinceRollover.reduce((acc, t) => {
+    if (t.result === 'W') return acc + Math.round(t.stake * (t.odd - 1));
+    if (t.result === 'L') return acc - t.stake;
+    return acc;
+  }, 0);
+  const newBase = Math.max(kellyBase + pnl, 1);
+  const prev = kellyBase;
+  kellyBase      = newBase;
+  startBalance   = newBase;
+  currentBalance = newBase;
+  rolloverTs     = Date.now();
+
+  // Re-deduct pending stakes against new kellyBase
+  tracker.forEach(t => {
+    if (t.result !== null) return;
+    const newStake = calcStake(t.kelly);
+    t.stake = newStake;
+    currentBalance = Math.max(currentBalance - newStake, 0);
+    t.stakeDeducted = true;
+  });
+  normalizeStakes();
+
+  lsSet('ba_rollover_ts', rolloverTs);
+  lsSet('ba_last_rollover', getMoscowDateStr());
+  saveState();
+  renderBalanceWidget();
+  renderTracker();
+  updateHeader();
+
+  const sign = pnl >= 0 ? '+' : '';
+  toast(`Новый день — банкролл: ${fmt(newBase)} ₽ (${sign}${fmt(pnl)} ₽ за вчера)`, pnl >= 0 ? 'ok' : 'err');
+}
+
+function checkRollover() {
+  if (!kellyBase) return;
+  const lastDate = lsGet('ba_last_rollover');
+  const today    = getMoscowDateStr();
+  // also roll if rolloverTs=0: first time with the new rollover system (migration)
+  if (!lastDate || lastDate !== today || !rolloverTs) {
+    doRollover();
+  }
+}
+
 // ══ Init from LocalStorage ════════════════════════════════════════════════════
 function initFromStorage() {
   const savedM   = lsGet(LS_M);
@@ -2344,6 +2398,8 @@ function initFromStorage() {
   // fall back to currentBalance for existing users who don't have kellyBase saved yet
   kellyBase = (savedKB && savedKB > 0) ? savedKB : currentBalance;
   if (savedT   && Array.isArray(savedT)) tracker = savedT;
+  const savedRolTs = lsGet('ba_rollover_ts');
+  if (savedRolTs && savedRolTs > 0) rolloverTs = savedRolTs;
 
   if (savedM && Array.isArray(savedM) && savedM.length) {
     matches = savedM;
@@ -2360,6 +2416,8 @@ function initFromStorage() {
   updateHeader();
   updateThemeBtn();
   startAutoResult();
+  checkRollover();
+  setInterval(checkRollover, 60000); // check every minute for midnight rollover
   setTimeout(loadTodayMatches, 400);
 }
 
@@ -2403,8 +2461,8 @@ async function doLiveRefresh() {
     fbMatches.forEach(m => {
       if (m.state === 'in' && m.espn_id && m.home_score != null) {
         const prev = scoreCache[m.espn_id] || {};
-        if (prev.home_score !== m.home_score || prev.away_score !== m.away_score) {
-          scoreCache[m.espn_id] = { state: 'in', home_score: m.home_score, away_score: m.away_score };
+        if (prev.home_score !== m.home_score || prev.away_score !== m.away_score || prev.clock !== m.clock) {
+          scoreCache[m.espn_id] = { state: 'in', home_score: m.home_score, away_score: m.away_score, clock: m.clock };
           scoreDirty = true;
         }
       }
