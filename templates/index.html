@@ -483,21 +483,15 @@ html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
         <input id="ox2" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="X2">
       </div>
       <label class="flabel" style="margin-bottom:4px">Тотал голов</label>
-      <div class="g4 mb-2">
+      <div class="g3 mb-2">
         <input id="otb"   class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТБ2.5">
         <input id="otm"   class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТМ2.5">
-        <input id="otb35" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТБ3.5">
         <input id="otm35" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ТМ3.5">
       </div>
       <label class="flabel" style="margin-bottom:4px">Обе забьют</label>
       <div class="g2 mb-2">
         <input id="ob_yes" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ОЗ Да">
         <input id="ob_no"  class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ОЗ Нет">
-      </div>
-      <label class="flabel" style="margin-bottom:4px">Азиатский гандикап</label>
-      <div class="g2 mb-2">
-        <input id="oah_m15" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ФХ −1.5">
-        <input id="oah_p15" class="fc" type="number" inputmode="decimal" step="0.01" placeholder="ФГ +1.5">
       </div>
     </div>
 
@@ -1602,7 +1596,7 @@ function editMatch(id) {
   $('fa').value  = inp.fa  ?? '';
   $('ng').value  = inp.ng  ?? '5';
   const od = inp.odds || {};
-  ['oh','ox','oa','o1x','ox2','otb','otm','otb35','otm35','ob_yes','ob_no','oah_m15','oah_p15'].forEach(k => {
+  ['oh','ox','oa','o1x','ox2','otb','otm','otm35','ob_yes','ob_no'].forEach(k => {
     $(k) && ($(k).value = od[k] || '');
   });
   showTab('matches');
@@ -1839,9 +1833,8 @@ function addMatch() {
       oh: $('oh').value, ox: $('ox').value, oa: $('oa').value,
       o1x: $('o1x').value, ox2: $('ox2').value,
       otb: $('otb').value, otm: $('otm').value,
-      otb35: $('otb35').value, otm35: $('otm35').value,
-      ob_yes: $('ob_yes').value, ob_no: $('ob_no').value,
-      oah_m15: $('oah_m15').value, oah_p15: $('oah_p15').value
+      otm35: $('otm35').value,
+      ob_yes: $('ob_yes').value, ob_no: $('ob_no').value
     }
   };
 
@@ -1907,7 +1900,7 @@ function toggleExtraOdds(forceOpen) {
 }
 
 function autoExpandExtraOdds() {
-  const extraIds = ['o1x','ox2','otb','otm','otb35','otm35','ob_yes','ob_no','oah_m15','oah_p15'];
+  const extraIds = ['o1x','ox2','otb','otm','otm35','ob_yes','ob_no'];
   const hasValue = extraIds.some(id => $(id)?.value);
   if (hasValue) toggleExtraOdds(true);
 }
@@ -1915,8 +1908,7 @@ function autoExpandExtraOdds() {
 // ══ Util buttons ══════════════════════════════════════════════════════════════
 function clearFields() {
   ['home_team','away_team','hs','hc_i','as_i','ac','fh','fa',
-   'oh','ox','oa','o1x','ox2','otb','otm','otb35','otm35','ob_yes','ob_no',
-   'oah_m15','oah_p15'].forEach(id => $(id).value = '');
+   'oh','ox','oa','o1x','ox2','otb','otm','otm35','ob_yes','ob_no'].forEach(id => $(id).value = '');
   $('ng').value = '5';
   $('home_team').focus();
   toast('Поля формы очищены');
@@ -2545,12 +2537,9 @@ async function selectFbMatch(idx) {
     $('otm').value   = od.otm   || '';
     $('o1x').value   = od.o1x   || '';
     $('ox2').value   = od.ox2   || '';
-    $('otb35').value = od.otb35 || '';
-    $('otm35').value = od.otm35 || '';
+    $('otm35').value   = od.otm35 || '';
     $('ob_yes').value  = '';
     $('ob_no').value   = '';
-    $('oah_m15').value = '';
-    $('oah_p15').value = '';
 
     lastFbEspnId    = m.espn_id || null;
     lastFbMatchTime = m.time    || null;

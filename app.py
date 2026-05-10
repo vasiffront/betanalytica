@@ -291,9 +291,8 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
     oh, ox, oa   = _o('oh'), _o('ox'), _o('oa')
     o1x, ox2     = _o('o1x', 1.5), _o('ox2', 1.5)
     otb          = _oopt('otb');    otm    = _oopt('otm')
-    otb35        = _oopt('otb35');  otm35  = _oopt('otm35')
-    ob_yes       = _oopt('ob_yes'); ob_no  = _oopt('ob_no')
-    oah_m15      = _oopt('oah_m15'); oah_p15 = _oopt('oah_p15')
+    otm35  = _oopt('otm35')
+    ob_yes = _oopt('ob_yes'); ob_no  = _oopt('ob_no')
 
     lh, la = calculate_lambdas(hs, hc, as_, ac, ng, league)
     lh = form_adjustment(lh, fh)
@@ -317,14 +316,9 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
     p_btts_yes = sum(p for (h, a), p in probs.items() if h > 0 and a > 0)
     if otb:    markets.append(('ТБ2.5',  p_tb25,           otb,    mp(otb)))
     if otm:    markets.append(('ТМ2.5',  1.0 - p_tb25,     otm,    mp(otm)))
-    if otb35:  markets.append(('ТБ3.5',  p_tb35,           otb35,  mp(otb35)))
     if otm35:  markets.append(('ТМ3.5',  1.0 - p_tb35,     otm35,  mp(otm35)))
     if ob_yes: markets.append(('ОЗ Да',  p_btts_yes,       ob_yes, mp(ob_yes)))
     if ob_no:  markets.append(('ОЗ Нет', 1.0 - p_btts_yes, ob_no,  mp(ob_no)))
-    if oah_m15:
-        markets.append(('ФХ -1.5', sum(p for (h,a),p in probs.items() if h-a >= 2), oah_m15, mp(oah_m15)))
-    if oah_p15:
-        markets.append(('ФГ +1.5', sum(p for (h,a),p in probs.items() if h-a <= 1), oah_p15, mp(oah_p15)))
 
     bets = {}
     for name, model_p, odd, market_p in markets:
