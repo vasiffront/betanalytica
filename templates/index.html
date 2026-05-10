@@ -522,9 +522,7 @@ html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
       <b style="color:var(--text)">Матчей</b> — кол-во матчей в статистике (по умолч. 5)<br><br>
       <b style="color:var(--text)">Грейды:</b>
       <span class="gr gr-A ms-1">A</span> отличная
-      <span class="gr gr-B ms-1">B</span> хорошая
-      <span class="gr gr-C ms-1">C</span> умеренная
-      <span class="gr gr-D ms-1">D</span> слабая<br><br>
+      <span class="gr gr-B ms-1">B</span> хорошая<br><br>
       <b style="color:var(--text)">VR</b> — вероятность модели / вероятность рынка. Больше 1.0 = найдено преимущество<br>
       <b style="color:var(--text)">Conf</b> снижается при высоких кэфах: ×4 → −24 пт, ×6 → −39 пт
     </div>
@@ -621,8 +619,6 @@ html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
       <div class="tf-sep"></div>
       <button class="tf-btn"     id="tf-gA" onclick="setTFilter('grade','A')"><span class="gr gr-A">A</span></button>
       <button class="tf-btn"     id="tf-gB" onclick="setTFilter('grade','B')"><span class="gr gr-B">B</span></button>
-      <button class="tf-btn"     id="tf-gC" onclick="setTFilter('grade','C')"><span class="gr gr-C">C</span></button>
-      <button class="tf-btn"     id="tf-gD" onclick="setTFilter('grade','D')"><span class="gr gr-D">D</span></button>
       <div class="tf-sep"></div>
       <button class="tf-btn act" id="tf-dt-all"   onclick="setTFilter('date','all')">Все даты</button>
       <button class="tf-btn"     id="tf-dt-today"  onclick="setTFilter('date','today')">Сегодня</button>
@@ -1460,9 +1456,9 @@ function deleteTracked(id) {
   const t = tracker.find(x => x.id === id);
   if (!t) return;
   if (t.result === 'W') {
-    // Undo win profit; for new bets also restore the deducted stake (net = -(odd-1)*stake)
-    currentBalance -= Math.round(t.stake * (t.odd - 1));
-    if (t.stakeDeducted) currentBalance += t.stake;
+    currentBalance -= t.stakeDeducted
+      ? Math.round(t.stake * t.odd)          // new bet: undo stake+profit
+      : Math.round(t.stake * (t.odd - 1));   // old bet: undo profit only
   } else if (t.result === 'L') {
     currentBalance += t.stake; // restore stake (deducted at add for new bets, at L-set for old)
   } else if (t.stakeDeducted) {
@@ -1533,7 +1529,7 @@ function updateFilterUI() {
   if (rBtn) {
     rBtn.classList.add(tFilter.result === 'W' ? 'act-g' : tFilter.result === 'L' ? 'act-r' : 'act');
   }
-  ['A','B','C','D'].forEach(g => $(`tf-g${g}`)?.classList.remove('act'));
+  ['A','B'].forEach(g => $(`tf-g${g}`)?.classList.remove('act'));
   if (tFilter.grade !== 'all') $(`tf-g${tFilter.grade}`)?.classList.add('act');
   ['all','today','7d','30d'].forEach(d => $(`tf-dt-${d}`)?.classList.remove('act'));
   $(`tf-dt-${tFilter.date}`)?.classList.add('act');
@@ -2196,7 +2192,7 @@ function renderGradeStats() {
     if (t.result === 'W') { gm[t.grade].wins++; gm[t.grade].ret += t.stake * t.odd; }
     if (t.ev != null) { gm[t.grade].evSum += t.ev; gm[t.grade].evN++; }
   });
-  const rows = ['A','B','C','D'].filter(g => gm[g]).map(g => {
+  const rows = ['A','B'].filter(g => gm[g]).map(g => {
     const s   = gm[g];
     const wr  = (s.wins / s.bets * 100).toFixed(0);
     const roi = s.stake ? ((s.ret - s.stake) / s.stake * 100).toFixed(1) : '—';

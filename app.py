@@ -171,7 +171,8 @@ def confidence_score(ev_val, model_p, market_p, k_raw, odd=2.0):
 
     return min(max(raw - variance_pen, 0.0), 100.0)
 
-_GRADE_C_WHITELIST = {'ТБ2.5', 'ТБ3.5', 'ОЗ Да'}
+_GRADE_C_WHITELIST = {'ТБ2.5', 'ОЗ Да'}
+_DISABLED_MARKETS  = {'ТБ3.5'}  # historically −ROI, disabled
 _GRADE_A_ONLY     = {'ТМ2.5', 'ОЗ Нет', 'X2'}  # historically −ROI at B; require Grade A
 
 def bet_grade(conf, ev_val, name=''):
@@ -327,6 +328,8 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
 
     bets = {}
     for name, model_p, odd, market_p in markets:
+        if name in _DISABLED_MARKETS:
+            continue
         if name == '1X' and odd < 1.35:
             continue
         h_prob = hybrid_prob(model_p, market_p)
