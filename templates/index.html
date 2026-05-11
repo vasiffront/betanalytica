@@ -45,7 +45,6 @@ html[data-theme="light"]{
   --text:    #1f2328;
   --muted:   #57606a;
 }
-html[data-theme="light"] .hdr{background:rgba(246,248,250,.97)}
 html[data-theme="light"] #mobile-stats-bar{background:rgba(246,248,250,.97)}
 html[data-theme="light"] .bet-row:hover{background:rgba(0,0,0,.025)}
 html[data-theme="light"] .bw-bar-bg{background:rgba(0,0,0,.08)}
@@ -57,6 +56,9 @@ html[data-theme="light"] .lg-btn{background:rgba(0,0,0,.04)}
 html[data-theme="light"] .spinner{border-color:rgba(0,0,0,.15);border-top-color:#333}
 html[data-theme="light"] #toast{box-shadow:0 8px 24px rgba(0,0,0,.15)}
 html[data-theme="light"] .stat-pill,html[data-theme="light"] #tg-btn,html[data-theme="light"] #theme-toggle{background:rgba(0,0,0,.05)}
+html[data-theme="light"] .hdr{background:rgba(246,248,250,.97)}
+html[data-theme="light"] .hdr-logo-icon{background:rgba(88,166,255,.08);border-color:rgba(88,166,255,.18)}
+html[data-theme="light"] .hdr-divider{background:rgba(0,0,0,.1)}
 html[data-theme="light"] .mcard:hover{box-shadow:0 8px 24px rgba(0,0,0,.1)}
 html[data-theme="light"] .mkt-tbl tr:hover td{background:rgba(0,0,0,.025)}
 html[data-theme="light"] .bw{background:linear-gradient(135deg,rgba(63,185,80,.06),rgba(88,166,255,.04))}
@@ -67,12 +69,18 @@ html[data-theme="light"] .exp-card:first-child{background:rgba(63,185,80,.04)}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14px;min-height:100vh}
 
 /* ── Header ── */
-.hdr{background:rgba(22,27,34,.96);border-bottom:1px solid var(--border);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;padding:11px 20px}
-.hdr h1{font-size:18px;font-weight:700;background:linear-gradient(135deg,#58a6ff,#3fb950);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.stat-pill{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:20px;padding:3px 11px;font-size:11px;color:var(--muted);white-space:nowrap}
+.hdr{background:rgba(13,17,23,.97);backdrop-filter:blur(16px);position:sticky;top:0;z-index:100;padding:10px 20px;border-bottom:none}
+.hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(88,166,255,.35) 30%,rgba(63,185,80,.35) 70%,transparent)}
+.hdr-logo-wrap{display:flex;align-items:center;gap:10px}
+.hdr-logo-icon{width:34px;height:34px;background:linear-gradient(135deg,rgba(88,166,255,.15),rgba(63,185,80,.12));border:1px solid rgba(88,166,255,.22);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#58a6ff;font-size:15px;flex-shrink:0}
+.hdr h1{font-size:17px;font-weight:700;background:linear-gradient(135deg,#58a6ff,#3fb950);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;display:inline;line-height:1}
+.pro-badge{font-size:9px;font-weight:800;letter-spacing:.8px;border:1px solid rgba(88,166,255,.3);border-radius:4px;padding:1px 5px;background:linear-gradient(135deg,rgba(88,166,255,.12),rgba(63,185,80,.1));-webkit-text-fill-color:#7ab8ff;color:#7ab8ff;vertical-align:middle;margin-left:5px}
+.stat-pill{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:5px 11px;font-size:11px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:5px}
 .stat-pill span{color:var(--text);font-weight:700}
-.bal-pill{background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.25);border-radius:20px;padding:3px 13px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;transition:background .2s}
-.bal-pill:hover{background:rgba(63,185,80,.2)}
+.stat-pill i{font-size:10px}
+.hdr-divider{width:1px;height:22px;background:rgba(255,255,255,.08);margin:0 2px}
+.bal-pill{background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.28);border-radius:8px;padding:5px 14px;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer;transition:all .2s;color:var(--green);display:flex;align-items:center;gap:6px}
+.bal-pill:hover{background:rgba(63,185,80,.2);border-color:rgba(63,185,80,.5);box-shadow:0 0 14px rgba(63,185,80,.15)}
 
 /* ── Layout ── */
 .wrap{max-width:1220px;margin:0 auto;padding:20px 14px}
@@ -314,13 +322,17 @@ html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
 
 <header class="hdr">
   <div style="max-width:1220px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-    <h1><i class="fa-solid fa-chart-line" style="font-size:15px;-webkit-text-fill-color:#58a6ff"></i> BetAnalytica <span style="font-weight:400;font-size:13px;-webkit-text-fill-color:#7d8590">PRO</span></h1>
-    <div style="display:flex;gap:7px;flex-wrap:wrap" id="hdr-stats">
-      <div class="stat-pill">Матчей: <span id="hc">0</span></div>
-      <div class="stat-pill">Avg EV: <span id="hev">—</span></div>
-      <div class="stat-pill">Grade A: <span id="ha">0</span></div>
+    <div class="hdr-logo-wrap">
+      <div class="hdr-logo-icon"><i class="fa-solid fa-chart-line"></i></div>
+      <h1>BetAnalytica<span class="pro-badge">PRO</span></h1>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center" id="hdr-stats">
+      <div class="stat-pill"><i class="fa-solid fa-futbol" style="color:#58a6ff"></i> <span id="hc">0</span> матчей</div>
+      <div class="stat-pill"><i class="fa-solid fa-bolt" style="color:#f0c040"></i> EV <span id="hev">—</span></div>
+      <div class="stat-pill"><i class="fa-solid fa-star" style="color:#3fb950"></i> A: <span id="ha">0</span></div>
+      <div class="hdr-divider"></div>
       <div class="bal-pill" onclick="showTab('tracker')" title="Перейти к трекеру" id="hdr-bal">
-        <i class="fa-solid fa-wallet" style="font-size:10px;margin-right:4px;color:var(--green)"></i><span id="hbal-txt">Нет баланса</span>
+        <i class="fa-solid fa-wallet" style="font-size:11px"></i><span id="hbal-txt">Нет баланса</span>
       </div>
       <button id="tg-btn" onclick="openTgModal()" title="Telegram уведомления" style="background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:20px;padding:3px 11px;font-size:11px;color:var(--muted);cursor:pointer;transition:all .2s">
         <i class="fa-brands fa-telegram" id="tg-icon"></i>
