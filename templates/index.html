@@ -317,6 +317,131 @@ html[data-theme="light"] .sb-item:hover{background:rgba(0,0,0,.05)}
 html[data-theme="light"] .sb-item.active{background:rgba(124,111,224,.12)}
 html[data-theme="light"] .prob-track{background:rgba(0,0,0,.07)}
 html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
+
+/* ══ Design Enhancement Pack ════════════════════════════════════════════════ */
+
+/* Ambient background blobs */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 900px 700px at 15% 35%,rgba(88,166,255,.028) 0,transparent 70%),
+    radial-gradient(ellipse 700px 600px at 82% 65%,rgba(63,185,80,.022) 0,transparent 70%),
+    radial-gradient(ellipse 500px 400px at 50% 5%,rgba(124,111,224,.018) 0,transparent 70%)}
+body>*{position:relative;z-index:1}
+.sidebar{z-index:50!important}
+#toast{z-index:9999!important}
+#tg-modal{z-index:9000!important}
+
+/* Custom scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.09);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.18)}
+
+/* Tab bar — sliding pill indicator */
+.tab-bar{position:relative;overflow:visible}
+#tab-indicator{
+  position:absolute;top:4px;height:calc(100% - 8px);
+  background:var(--bg-card2);border-radius:calc(var(--rsm) - 1px);
+  transition:left .28s cubic-bezier(.4,0,.2,1),width .28s cubic-bezier(.4,0,.2,1);
+  pointer-events:none;z-index:0;
+  box-shadow:0 2px 10px rgba(0,0,0,.28)}
+.tab-btn{z-index:1;position:relative;transition:color .22s}
+.tab-btn.active{background:transparent!important;color:var(--text)}
+
+/* Grade A breathing glow */
+@keyframes gaBreath{
+  0%,100%{box-shadow:0 0 0 1px rgba(52,211,153,.12),0 4px 20px rgba(52,211,153,.08)}
+  50%{box-shadow:0 0 0 1px rgba(52,211,153,.28),0 6px 30px rgba(52,211,153,.18)}}
+.mcard.ga{animation:gaBreath 3.5s ease-in-out infinite}
+.mcard.ga:hover{animation:none;box-shadow:0 0 0 1px rgba(52,211,153,.38),0 8px 36px rgba(52,211,153,.26)!important;transform:translateY(-3px)!important}
+.mcard.gb:hover{box-shadow:0 0 0 1px rgba(124,111,224,.32),0 8px 32px rgba(124,111,224,.2)!important;transform:translateY(-3px)!important}
+
+/* Card staggered entrance */
+@keyframes cardIn{from{opacity:0;transform:translateY(16px) scale(.984)}to{opacity:1;transform:translateY(0) scale(1)}}
+.mcard{animation:cardIn .34s cubic-bezier(.25,.46,.45,.94) both}
+.mcard:nth-child(1){animation-delay:.03s}
+.mcard:nth-child(2){animation-delay:.08s}
+.mcard:nth-child(3){animation-delay:.13s}
+.mcard:nth-child(4){animation-delay:.17s}
+.mcard:nth-child(5){animation-delay:.20s}
+.mcard:nth-child(n+6){animation-delay:.22s}
+
+/* Ripple */
+.ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.2);transform:scale(0);animation:rippleAnim .55s linear;pointer-events:none}
+@keyframes rippleAnim{to{transform:scale(4);opacity:0}}
+.btn-green,.btn-outline,.btn-red,.btn-sm,.tab-btn,.sb-item,.tf-btn,.lg-btn,.bal-pill{position:relative;overflow:hidden}
+
+/* Button press */
+.btn-green:active,.btn-outline:active,.btn-red:active{transform:scale(.97)!important;transition:transform .08s!important}
+.btn-sm:active,.tf-btn:active,.tab-btn:active{transform:scale(.94)!important;transition:transform .08s!important}
+
+/* Panel hover */
+.panel{transition:border-color .25s,box-shadow .25s}
+.panel:hover{border-color:rgba(255,255,255,.12)}
+
+/* Balance amount gradient */
+.bw-amount{background:linear-gradient(135deg,#34d399 20%,#60a5fa 80%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+/* Tracker stat cards hover */
+.tsc{transition:all .22s cubic-bezier(.4,0,.2,1);cursor:default}
+.tsc:hover{border-color:rgba(88,166,255,.3);box-shadow:0 0 18px rgba(88,166,255,.09);transform:translateY(-2px)}
+
+/* Stat pills pop animation */
+@keyframes pillPop{0%{transform:scale(1)}45%{transform:scale(1.12)}100%{transform:scale(1)}}
+.stat-pill.pop{animation:pillPop .32s cubic-bezier(.4,0,.2,1)}
+
+/* Toast polish */
+#toast{border-radius:10px;backdrop-filter:blur(14px);background:rgba(14,14,28,.93)!important}
+#toast.show{animation:toastIn .32s cubic-bezier(.34,1.56,.64,1)}
+@keyframes toastIn{from{transform:translateY(22px) scale(.88);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+
+/* Input focus glow */
+.fc:focus{
+  border-color:rgba(88,166,255,.72)!important;
+  box-shadow:0 0 0 3px rgba(88,166,255,.15),0 0 14px rgba(88,166,255,.09)!important}
+
+/* Grade A star shimmer */
+@keyframes starPulse{0%,100%{color:#f0c040;text-shadow:none}50%{color:#ffd700;text-shadow:0 0 8px rgba(255,210,0,.55)}}
+.mcard.ga .star{animation:starPulse 2.8s ease-in-out infinite}
+
+/* Match card head hover */
+.mcard-head{transition:background .15s}
+.mcard-head:hover{background:rgba(255,255,255,.028)}
+
+/* Tracker bet hover */
+.tbet{transition:transform .18s,border-color .18s,box-shadow .18s}
+.tbet:hover{transform:translateX(3px);border-color:rgba(255,255,255,.13)}
+@keyframes wonShimmer{0%,100%{box-shadow:none}50%{box-shadow:0 0 14px rgba(63,185,80,.14)}}
+.tbet.won-bet{animation:wonShimmer 3.2s ease-in-out infinite}
+
+/* Sidebar items */
+.sb-item{transition:all .22s cubic-bezier(.4,0,.2,1)}
+.sb-item:hover{background:rgba(255,255,255,.08);transform:scale(1.06)}
+.sb-item.active{transform:scale(1)}
+
+/* Number flash on update */
+@keyframes numFlash{0%{opacity:.2}60%{opacity:1}100%{opacity:1}}
+.num-flash{animation:numFlash .38s ease}
+
+/* Better bar fill transitions */
+.bw-bar-fill{transition:width .9s cubic-bezier(.25,.46,.45,.94)}
+.prob-fill{transition:width .75s cubic-bezier(.25,.46,.45,.94)}
+.bar-fill{transition:width .6s cubic-bezier(.25,.46,.45,.94)}
+
+/* Mkt table row hover highlight */
+.mkt-tbl tr:hover td{background:rgba(88,166,255,.04)!important}
+
+/* Positive ROI green glow in tables */
+.roi-pos{color:var(--green);font-weight:700}
+.roi-neg{color:var(--red);font-weight:700}
+
+/* Light theme overrides */
+html[data-theme="light"] .bw-amount{background:linear-gradient(135deg,#059669 20%,#2563eb 80%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+html[data-theme="light"] ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.13)}
+html[data-theme="light"] .ripple{background:rgba(0,0,0,.12)}
+html[data-theme="light"] body::before{background:
+  radial-gradient(ellipse 900px 700px at 15% 35%,rgba(37,99,235,.018) 0,transparent 70%),
+  radial-gradient(ellipse 700px 600px at 82% 65%,rgba(5,150,105,.014) 0,transparent 70%)}
 </style>
 </head>
 <body>
@@ -538,7 +663,8 @@ html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
 
 <!-- ══ RIGHT: Results ═══════════════════════════════════════════════════ -->
 <div class="col-lg-7">
-  <div class="tab-bar">
+  <div class="tab-bar" id="main-tab-bar">
+    <span id="tab-indicator"></span>
     <button class="tab-btn active" onclick="showTab('matches')" id="tb-matches">Матчи <span id="tb-mc"></span></button>
     <button class="tab-btn" onclick="showTab('express')" id="tb-express">Экспрессы</button>
     <button class="tab-btn" onclick="showTab('tracker')" id="tb-tracker">Трекер <span id="tb-tc"></span></button>
@@ -935,16 +1061,75 @@ function showTab(name) {
   if (name === 'stats') renderAllStats();
   const msb = $('mobile-stats-bar');
   if (msb) msb.classList.toggle('visible', name === 'tracker');
+  updateTabIndicator();
+}
+
+function updateTabIndicator() {
+  const bar = $('main-tab-bar');
+  const ind = $('tab-indicator');
+  if (!bar || !ind) return;
+  const active = bar.querySelector('.tab-btn.active');
+  if (!active) return;
+  ind.style.left = active.offsetLeft + 'px';
+  ind.style.width = active.offsetWidth + 'px';
+}
+
+function addRipple(e) {
+  const btn = e.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const x = e.clientX - rect.left - size / 2;
+  const y = e.clientY - rect.top - size / 2;
+  const rip = document.createElement('span');
+  rip.className = 'ripple';
+  rip.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px`;
+  btn.appendChild(rip);
+  rip.addEventListener('animationend', () => rip.remove());
+}
+
+function countUp(el, to, prefix, suffix, duration) {
+  if (!el) return;
+  const from = parseFloat(el.dataset.countFrom || 0) || 0;
+  const start = performance.now();
+  function step(ts) {
+    const p = Math.min((ts - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    const val = from + (to - from) * ease;
+    el.textContent = prefix + val.toFixed(1) + suffix;
+    if (p < 1) requestAnimationFrame(step);
+    else { el.textContent = prefix + to.toFixed(1) + suffix; el.dataset.countFrom = to; }
+  }
+  requestAnimationFrame(step);
+}
+
+function flashNum(el) {
+  if (!el) return;
+  el.classList.remove('num-flash');
+  void el.offsetWidth;
+  el.classList.add('num-flash');
 }
 
 // ══ Header ════════════════════════════════════════════════════════════════════
+function popPill(el) {
+  if (!el) return;
+  const pill = el.closest('.stat-pill');
+  if (!pill) return;
+  pill.classList.remove('pop');
+  void pill.offsetWidth;
+  pill.classList.add('pop');
+}
+
 function updateHeader() {
+  const prev = { hc: $('hc').textContent, hev: $('hev').textContent, ha: $('ha').textContent };
   $('hc').textContent = matches.length;
   const evVals = matches.filter(m => m.best).map(m => m.best.ev);
   $('hev').textContent = evVals.length
     ? `+${(evVals.reduce((a,b) => a+b, 0) / evVals.length).toFixed(1)}%`
     : '—';
   $('ha').textContent = matches.filter(m => m.best && m.best.grade === 'A').length;
+  if ($('hc').textContent !== prev.hc) popPill($('hc'));
+  if ($('hev').textContent !== prev.hev) popPill($('hev'));
+  if ($('ha').textContent !== prev.ha) popPill($('ha'));
   const pending = tracker.filter(t => t.result === null).length;
   $('tb-mc').textContent = matches.length ? `(${matches.length})` : '';
   $('tb-tc').textContent = tracker.length ? `(${tracker.length})` : '';
@@ -2640,6 +2825,15 @@ $('ng').addEventListener('change', saveState);
 });
 
 initFromStorage(); // loadTodayMatches called inside with setTimeout
+
+// Init ripple on all interactive buttons
+document.querySelectorAll('.btn-green,.btn-outline,.btn-red,.btn-sm,.tf-btn,.lg-btn,.tab-btn,.sb-item,.bal-pill').forEach(btn => {
+  btn.addEventListener('click', addRipple);
+});
+
+// Init tab indicator (after layout paint)
+requestAnimationFrame(() => { requestAnimationFrame(updateTabIndicator); });
+window.addEventListener('resize', updateTabIndicator);
 </script>
 
 <!-- ══ Mobile sticky stats bar ══ -->
