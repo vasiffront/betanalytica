@@ -14,26 +14,32 @@
 <link rel="icon" type="image/svg+xml" href="/static/icon.svg">
 <link rel="apple-touch-icon" href="/static/icon.svg">
 <!-- /PWA -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 <style>
 :root {
-  --bg:       #08080f;
-  --bg-card:  #0e0e1c;
-  --bg-card2: #151528;
-  --bg-in:    #0b0b18;
-  --border:   rgba(255,255,255,.07);
-  --border2:  rgba(255,255,255,.13);
-  --text:     #e2e4f0;
-  --muted:    #6b7280;
+  --bg:       #07070d;
+  --bg-card:  #0d0d1c;
+  --bg-card2: #111126;
+  --bg-in:    #09091a;
+  --border:   rgba(255,255,255,.065);
+  --border2:  rgba(255,255,255,.12);
+  --text:     #e4e6f4;
+  --muted:    #636878;
   --blue:     #60a5fa;
   --green:    #34d399;
   --yellow:   #fbbf24;
   --red:      #f87171;
-  --radius:   12px;
-  --rsm:      7px;
+  --radius:   14px;
+  --rsm:      8px;
   --purple:   #a78bfa;
   --accent:   #7c6fe0;
+  --shadow-sm:  0 2px 8px rgba(0,0,0,.35);
+  --shadow-md:  0 4px 20px rgba(0,0,0,.45);
+  --shadow-lg:  0 8px 40px rgba(0,0,0,.55);
 }
 
 html[data-theme="light"]{
@@ -67,7 +73,7 @@ html[data-theme="light"] .bw-glow{background:radial-gradient(circle,rgba(63,185,
 html[data-theme="light"] .exp-card:first-child{background:rgba(63,185,80,.04)}
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14px;min-height:100vh}
+body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14px;min-height:100vh;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 
 /* ── Header ── */
 .hdr{background:rgba(13,17,23,.97);backdrop-filter:blur(16px);position:sticky;top:0;z-index:100;padding:10px 20px;border-bottom:none}
@@ -317,6 +323,124 @@ html[data-theme="light"] .sb-item:hover{background:rgba(0,0,0,.05)}
 html[data-theme="light"] .sb-item.active{background:rgba(124,111,224,.12)}
 html[data-theme="light"] .prob-track{background:rgba(0,0,0,.07)}
 html[data-theme="light"] .prob-fill.market-fill{background:rgba(0,0,0,.2)}
+
+/* ══ Premium Visual System ═════════════════════════════════════════════════ */
+
+/* Panels — more depth */
+.panel{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow-sm)}
+.ptitle{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.ptitle i{color:var(--blue);font-size:11px}
+
+/* Section dividers inside form */
+.sec-hd{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);margin:18px 0 10px;position:relative}
+.sec-hd::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border2),transparent);margin-left:4px}
+.sec-hd i{color:var(--blue);font-size:11px;flex-shrink:0}
+.sec-hd:first-child{margin-top:0}
+
+/* Form inputs — taller, more breathing room */
+.fc{background:var(--bg-in)!important;border:1px solid var(--border2)!important;border-radius:var(--rsm)!important;color:var(--text)!important;font-size:13px!important;font-family:inherit!important;padding:9px 12px!important;transition:border-color .18s,box-shadow .18s;width:100%}
+.fc:focus{border-color:rgba(88,166,255,.72)!important;box-shadow:0 0 0 3px rgba(88,166,255,.14),0 0 12px rgba(88,166,255,.08)!important;outline:none}
+.flabel{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:5px}
+
+/* Match cards — elevated design */
+.mcard{background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:13px;transition:transform .22s,box-shadow .22s;box-shadow:var(--shadow-sm)}
+.mcard-head{padding:13px 16px 11px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.teams{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;min-width:0;flex:1}
+.teams span:not(.vs){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vs{font-size:8px;font-weight:800;color:var(--muted);background:rgba(255,255,255,.07);border-radius:4px;padding:3px 5px;flex-shrink:0;letter-spacing:.5px}
+
+/* Grade badges — gradient + glow */
+.gr{font-size:11px;font-weight:800;border-radius:6px;padding:3px 8px;letter-spacing:.3px;display:inline-flex;align-items:center;gap:3px}
+.gr-A{background:linear-gradient(135deg,rgba(52,211,153,.22),rgba(63,185,80,.14));color:#4ade80;border:1px solid rgba(52,211,153,.42);box-shadow:0 0 10px rgba(52,211,153,.12)}
+.gr-B{background:linear-gradient(135deg,rgba(96,165,250,.2),rgba(88,166,255,.12));color:#60a5fa;border:1px solid rgba(96,165,250,.38);box-shadow:0 0 10px rgba(96,165,250,.1)}
+
+/* Meta tags in card header */
+.meta-tag{font-size:10px;color:var(--muted);background:rgba(255,255,255,.055);border:1px solid var(--border);border-radius:5px;padding:3px 8px;white-space:nowrap}
+
+/* xG row — redesigned */
+.xg-row{padding:10px 16px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border)}
+.xg-teams-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;font-size:12px;font-weight:600}
+.xg-bars{display:flex;align-items:center;gap:3px;height:6px;border-radius:3px;overflow:hidden}
+.xg-bar-h{height:100%;border-radius:2px 0 0 2px;background:linear-gradient(90deg,#1f6feb,#60a5fa);transition:width .5s ease}
+.xg-bar-sep{width:2px;background:var(--bg);flex-shrink:0}
+.xg-bar-a{height:100%;border-radius:0 2px 2px 0;background:linear-gradient(90deg,#f87171,#fbbf24);transition:width .5s ease}
+.xg-footer{display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:10px}
+
+/* Bet rows */
+.bet-row{padding:10px 16px;border-bottom:1px solid var(--border);transition:background .15s}
+.bet-row:last-child{border-bottom:none}
+.bet-row:hover{background:rgba(255,255,255,.025)}
+.bet-row.top-bet{background:rgba(88,166,255,.04);border-left:2px solid rgba(88,166,255,.3)}
+.odd-val{font-size:16px;font-weight:800;color:var(--blue)}
+.ev-tag{font-size:11px;font-weight:700;padding:3px 7px;border-radius:5px;background:rgba(52,211,153,.14);color:var(--green);border:1px solid rgba(52,211,153,.2)}
+.stake-tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;background:rgba(167,139,250,.13);color:var(--purple);border:1px solid rgba(167,139,250,.2)}
+
+/* Bet stats row */
+.bet-stats{display:flex;gap:10px;margin-top:5px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.bst{display:flex;align-items:center;gap:3px}
+.bst span{color:var(--text);font-weight:600}
+
+/* Balance widget */
+.bw{border-radius:var(--radius);padding:20px 22px;margin-bottom:14px;border:1px solid rgba(52,211,153,.22);background:linear-gradient(135deg,rgba(52,211,153,.07),rgba(96,165,250,.04));position:relative;overflow:hidden;box-shadow:var(--shadow-sm)}
+.bw-amount{font-size:34px;font-weight:800;letter-spacing:-1.5px;line-height:1}
+.bw-delta{font-size:17px;font-weight:700}
+
+/* Tracker stat cards */
+.tstats{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}
+.tsc{background:var(--bg-card2);border:1px solid var(--border);border-radius:11px;padding:13px 10px;text-align:center;transition:all .22s cubic-bezier(.4,0,.2,1);cursor:default}
+.tsc label{display:block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:4px}
+.tsc .tv{font-size:18px;font-weight:800;letter-spacing:-.5px}
+.tsc:hover{border-color:rgba(88,166,255,.3);box-shadow:0 0 18px rgba(88,166,255,.09);transform:translateY(-2px)}
+
+/* Stats tables */
+.mkt-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.mkt-tbl thead tr{background:rgba(255,255,255,.025)}
+.mkt-tbl th{color:var(--muted);font-size:9px;text-transform:uppercase;font-weight:700;letter-spacing:.7px;padding:8px 10px;border-bottom:1px solid var(--border);text-align:left}
+.mkt-tbl td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.032)}
+.mkt-tbl tr:last-child td{border-bottom:none}
+.mkt-tbl tr:hover td{background:rgba(88,166,255,.035)!important}
+
+/* ROI bar in tables */
+.roi-cell{display:flex;align-items:center;gap:7px;min-width:90px}
+.roi-track{width:44px;height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;flex-shrink:0}
+.roi-fill{height:100%;border-radius:2px;transition:width .6s cubic-bezier(.25,.46,.45,.94)}
+.wr-cell{display:flex;align-items:center;gap:6px}
+.wr-track{width:30px;height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;flex-shrink:0}
+.wr-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#1d4ed8,#60a5fa);transition:width .6s ease}
+
+/* Empty states */
+.empty{text-align:center;padding:48px 20px;color:var(--muted);font-size:13px;line-height:1.6}
+.empty i{font-size:32px;display:block;margin-bottom:10px;opacity:.18}
+
+/* Tracker bets */
+.tbet{background:var(--bg-card2);border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:8px;animation:fadeUp .25s ease;box-shadow:var(--shadow-sm)}
+
+/* Tabs */
+.tab-bar{display:flex;gap:3px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:4px;margin-bottom:16px;box-shadow:var(--shadow-sm)}
+.tab-btn{flex:1;padding:9px 8px;border:none;background:transparent;color:var(--muted);border-radius:var(--rsm);cursor:pointer;font-size:13px;font-weight:600;transition:color .22s;letter-spacing:-.1px}
+
+/* Buttons */
+.btn-green{background:linear-gradient(135deg,#16a34a,#22c55e);border:none;border-radius:var(--rsm);color:#fff;font-weight:700;font-size:14px;font-family:inherit;padding:10px 18px;cursor:pointer;transition:opacity .2s,transform .1s,box-shadow .2s;width:100%;box-shadow:0 2px 12px rgba(34,197,94,.25)}
+.btn-green:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 4px 18px rgba(34,197,94,.35)}
+.btn-green:disabled{opacity:.38;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-outline{background:transparent;border:1px solid var(--border2);border-radius:var(--rsm);color:var(--muted);font-size:13px;font-weight:600;font-family:inherit;padding:9px 14px;cursor:pointer;transition:all .2s}
+.btn-outline:hover{border-color:var(--blue);color:var(--blue);background:rgba(96,165,250,.06)}
+.btn-red{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.28);border-radius:var(--rsm);color:var(--red);font-weight:600;font-size:13px;font-family:inherit;padding:9px 14px;cursor:pointer;transition:background .2s}
+.btn-red:hover{background:rgba(248,81,73,.2)}
+.btn-sm{padding:5px 10px;font-size:11px;font-weight:600;border-radius:5px;border:none;cursor:pointer;transition:all .15s;font-family:inherit}
+
+/* Hint panel */
+.hint-panel{background:linear-gradient(135deg,rgba(88,166,255,.04),rgba(124,111,224,.03));border:1px solid rgba(88,166,255,.12);border-radius:var(--radius);padding:14px 16px;font-size:11.5px;color:var(--muted);line-height:1.8}
+.hint-panel b{color:var(--text)}
+
+/* Light theme adjustments for new styles */
+html[data-theme="light"] .tsc{background:#fff}
+html[data-theme="light"] .hint-panel{background:rgba(88,166,255,.03);border-color:rgba(88,166,255,.1)}
+html[data-theme="light"] .mkt-tbl thead tr{background:rgba(0,0,0,.02)}
+html[data-theme="light"] .mkt-tbl tr:hover td{background:rgba(0,0,0,.02)!important}
+html[data-theme="light"] .roi-track,.html[data-theme="light"] .wr-track{background:rgba(0,0,0,.08)}
+html[data-theme="light"] .bet-row.top-bet{background:rgba(88,166,255,.04)}
+html[data-theme="light"] .tab-bar{background:#fff;border-color:rgba(0,0,0,.09)}
 
 /* ══ Design Enhancement Pack ════════════════════════════════════════════════ */
 
@@ -579,14 +703,14 @@ html[data-theme="light"] body::before{background:
   </div>
 
   <div class="panel">
-    <div class="ptitle"><i class="fa-solid fa-plus-circle"></i> Добавить матч</div>
+    <div class="ptitle"><i class="fa-solid fa-magnifying-glass-chart"></i> Анализ матча</div>
 
     <div class="g2 mb-3">
       <div><label class="flabel">Хозяева</label><input id="home_team" class="fc" placeholder="Команда A"></div>
       <div><label class="flabel">Гости</label><input id="away_team" class="fc" placeholder="Команда B"></div>
     </div>
 
-    <div class="ptitle"><i class="fa-solid fa-futbol"></i> Голы (за N матчей)</div>
+    <div class="sec-hd"><i class="fa-solid fa-futbol"></i> Голы за N матчей</div>
     <div class="row g-2 mb-2">
       <div class="col-3"><label class="flabel">Хоз. заб.</label><input id="hs" class="fc" type="number" inputmode="numeric" min="0" placeholder="8"></div>
       <div class="col-3"><label class="flabel">Хоз. проп.</label><input id="hc_i" class="fc" type="number" inputmode="numeric" min="0" placeholder="4"></div>
@@ -600,8 +724,8 @@ html[data-theme="light"] body::before{background:
       <div class="col-4"><label class="flabel" title="Кол-во матчей в статистике">Матчей <i class="fa-solid fa-circle-question" style="font-size:9px;color:var(--blue)"></i></label><input id="ng" class="fc" type="number" inputmode="numeric" min="1" max="20" placeholder="5" value="5"></div>
     </div>
 
-    <div class="ptitle"><i class="fa-solid fa-tags"></i> Коэффициенты</div>
-    <label class="flabel" style="margin-bottom:4px">Исход (1X2)</label>
+    <div class="sec-hd"><i class="fa-solid fa-tags"></i> Коэффициенты</div>
+    <label class="flabel" style="margin-bottom:5px">Исход (1X2)</label>
     <div class="g3 mb-2">
       <input id="oh"  class="fc" type="number" inputmode="decimal" step="0.01" placeholder="П1">
       <input id="ox"  class="fc" type="number" inputmode="decimal" step="0.01" placeholder="X">
@@ -648,15 +772,15 @@ html[data-theme="light"] body::before{background:
   </div>
 
   <!-- Hint -->
-  <div class="panel" style="padding:13px">
-    <div style="font-size:11px;color:var(--muted);line-height:1.75">
-      <b style="color:var(--text)">Форма</b> — очки за N матчей (П=3, Н=1, П=0), макс. N×3<br>
-      <b style="color:var(--text)">Матчей</b> — кол-во матчей в статистике (по умолч. 5)<br><br>
-      <b style="color:var(--text)">Грейды:</b>
-      <span class="gr gr-A ms-1">A</span> отличная
-      <span class="gr gr-B ms-1">B</span> хорошая<br><br>
-      <b style="color:var(--text)">VR</b> — вероятность модели / вероятность рынка. Больше 1.0 = найдено преимущество<br>
-      <b style="color:var(--text)">Conf</b> снижается при высоких кэфах: ×4 → −24 пт, ×6 → −39 пт
+  <div class="hint-panel">
+    <div style="display:flex;flex-wrap:wrap;gap:12px 24px;margin-bottom:10px">
+      <div><span class="gr gr-A">A</span> <span style="font-size:11px;color:var(--muted)">Отличная ценность (EV ≥ порог, высокий Conf)</span></div>
+      <div><span class="gr gr-B">B</span> <span style="font-size:11px;color:var(--muted)">Хорошая ценность</span></div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.8;border-top:1px solid var(--border);padding-top:9px">
+      <b>Форма</b> — очки за N матчей (П=3, Н=1, Н=0), макс. N×3 &nbsp;·&nbsp;
+      <b>VR</b> — модель / рынок, >1.0 = преимущество &nbsp;·&nbsp;
+      <b>Conf</b> снижается при высоких кэфах: ×4 → −24 пт
     </div>
   </div>
 </div>
@@ -1425,15 +1549,23 @@ function matchCardHtml(m, isNew=false) {
       </div>
     </div>
     <div id="mc-body-${mid}">
-      <div class="xg-row">
-        <span style="color:var(--blue);font-weight:700">${m.lh} xG</span>
-        <div style="height:4px;width:${bw(m.lh)}px;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:2px"></div>
-        <span style="color:var(--muted);font-size:10px">|</span>
-        <div style="height:4px;width:${bw(m.la)}px;background:linear-gradient(90deg,#f85149,#d29922);border-radius:2px"></div>
-        <span style="color:var(--red);font-weight:700">${m.la} xG</span>
-        <span style="margin-left:auto;font-size:10px">≈ ${(m.lh+m.la).toFixed(2)} гола</span>
-        ${m.h2h_n >= 3 ? `<span style="margin-left:8px;font-size:10px;color:var(--muted)" title="H2H поправка применена"><i class="fa-solid fa-arrow-right-arrow-left" style="font-size:9px"></i> H2H:${m.h2h_n}</span>` : ''}
-      </div>
+      <div class="xg-row">${(()=>{
+        const tot = m.lh + m.la || 1;
+        const hp  = Math.round(m.lh / tot * 100);
+        const ap  = 100 - hp;
+        const h2h = m.h2h_n >= 3 ? `<span style="font-size:10px;color:var(--muted)" title="H2H поправка применена"><i class="fa-solid fa-arrow-right-arrow-left" style="font-size:8px"></i> H2H:${m.h2h_n}</span>` : '';
+        return `
+        <div class="xg-teams-row">
+          <span style="color:var(--blue)">${m.home}: <b style="color:var(--text)">${m.lh}</b> xG</span>
+          <span style="color:var(--muted);font-size:10px">≈ ${(m.lh+m.la).toFixed(2)} гола ${h2h}</span>
+          <span style="color:var(--red)">${m.away}: <b style="color:var(--text)">${m.la}</b> xG</span>
+        </div>
+        <div class="xg-bars">
+          <div class="xg-bar-h" style="flex:${hp}"></div>
+          <div class="xg-bar-sep"></div>
+          <div class="xg-bar-a" style="flex:${ap}"></div>
+        </div>`;
+      })()}</div>
       ${(m.lh + m.la) < 1.2 ? `<div style="padding:5px 14px;font-size:11px;color:var(--yellow);background:rgba(210,153,34,.07);border-bottom:1px solid var(--border)"><i class="fa-solid fa-triangle-exclamation"></i> Низкий xG — возможно неполные данные ESPN. Проверьте статистику.</div>` : ''}
       ${rows}
     </div>
@@ -1743,19 +1875,26 @@ function renderMarketStats() {
     if (t.result === 'W') { mktMap[k].wins++; mktMap[k].ret += t.stake * t.odd; }
   });
 
+  const allRoi = Object.values(mktMap).map(s => s.stake ? (s.ret - s.stake) / s.stake * 100 : 0);
+  const maxAbsRoi = Math.max(50, ...allRoi.map(Math.abs));
   const rows = Object.entries(mktMap)
     .sort((a, b) => b[1].bets - a[1].bets)
     .map(([name, s]) => {
-      const wr  = (s.wins / s.bets * 100).toFixed(0);
-      const roi = s.stake ? ((s.ret - s.stake) / s.stake * 100).toFixed(1) : '—';
-      const rc  = parseFloat(roi) > 0 ? 'var(--green)' : parseFloat(roi) < 0 ? 'var(--red)' : 'var(--muted)';
-      const wc  = wr >= 55 ? 'var(--green)' : wr >= 40 ? 'var(--yellow)' : 'var(--red)';
+      const wr    = (s.wins / s.bets * 100).toFixed(0);
+      const roiV  = s.stake ? (s.ret - s.stake) / s.stake * 100 : null;
+      const roi   = roiV !== null ? roiV.toFixed(1) : '—';
+      const rc    = roiV > 0 ? 'var(--green)' : roiV < 0 ? 'var(--red)' : 'var(--muted)';
+      const wc    = wr >= 55 ? 'var(--green)' : wr >= 40 ? 'var(--yellow)' : 'var(--red)';
+      const roiPct = roiV !== null ? Math.min(Math.abs(roiV) / maxAbsRoi * 100, 100) : 0;
+      const roiClr = roiV > 0 ? 'linear-gradient(90deg,#166534,#34d399)' : 'linear-gradient(90deg,#991b1b,#f87171)';
+      const wrPct  = Math.min(+wr, 100);
+      const roiStr = roi !== '—' ? (roiV>0?'+':'')+roi+'%' : '—';
       return `<tr>
-        <td style="font-weight:600">${name}</td>
-        <td>${s.bets}</td>
-        <td>${s.wins}</td>
-        <td style="color:${wc}">${wr}%</td>
-        <td style="color:${rc}">${roi !== '—' ? (parseFloat(roi)>0?'+':'') + roi + '%' : '—'}</td>
+        <td style="font-weight:600;letter-spacing:-.1px">${name}</td>
+        <td style="color:var(--muted)">${s.bets}</td>
+        <td style="color:var(--muted)">${s.wins}</td>
+        <td><div class="wr-cell"><div class="wr-track"><div class="wr-fill" style="width:${wrPct}%"></div></div><span style="color:${wc};font-weight:600">${wr}%</span></div></td>
+        <td><div class="roi-cell"><div class="roi-track"><div class="roi-fill" style="width:${roiPct}%;background:${roiClr}"></div></div><span style="color:${rc};font-weight:700">${roiStr}</span></div></td>
       </tr>`;
     }).join('');
   $('mkt-tbody').innerHTML = rows;
@@ -2383,16 +2522,25 @@ function renderGradeStats() {
     if (t.ev != null) { gm[t.grade].evSum += t.ev; gm[t.grade].evN++; }
   });
   const rows = ['A','B'].filter(g => gm[g]).map(g => {
-    const s   = gm[g];
-    const wr  = (s.wins / s.bets * 100).toFixed(0);
-    const roi = s.stake ? ((s.ret - s.stake) / s.stake * 100).toFixed(1) : '—';
+    const s     = gm[g];
+    const wr    = (s.wins / s.bets * 100).toFixed(0);
+    const roiV  = s.stake ? (s.ret - s.stake) / s.stake * 100 : null;
+    const roi   = roiV !== null ? roiV.toFixed(1) : '—';
     const avgEv = s.evN ? (s.evSum / s.evN).toFixed(1) : '—';
-    const evc = avgEv !== '—' && parseFloat(avgEv) > 0 ? 'var(--green)' : 'var(--muted)';
+    const evc   = avgEv !== '—' && parseFloat(avgEv) > 0 ? 'var(--green)' : 'var(--muted)';
+    const wc    = wr >= 55 ? 'var(--green)' : wr >= 40 ? 'var(--yellow)' : 'var(--red)';
+    const rc    = roiV > 0 ? 'var(--green)' : roiV < 0 ? 'var(--red)' : 'var(--muted)';
+    const roiPct = roiV !== null ? Math.min(Math.abs(roiV) / 50 * 100, 100) : 0;
+    const roiClr = roiV > 0 ? 'linear-gradient(90deg,#166534,#34d399)' : 'linear-gradient(90deg,#991b1b,#f87171)';
+    const wrPct  = Math.min(+wr, 100);
+    const roiStr = roi !== '—' ? (roiV>0?'+':'')+roi+'%' : '—';
     return `<tr>
-      <td>${grHtml(g)}</td><td>${s.bets}</td><td>${s.wins}</td>
-      <td style="color:${wr>=55?'var(--green)':wr>=40?'var(--yellow)':'var(--red)'}">${wr}%</td>
-      <td style="color:${parseFloat(roi)>0?'var(--green)':parseFloat(roi)<0?'var(--red)':'var(--muted)'}">${roi!=='—'?(parseFloat(roi)>0?'+':'')+roi+'%':'—'}</td>
-      <td style="color:${evc}">${avgEv !== '—' ? '+'+avgEv+'%' : '—'}</td>
+      <td>${grHtml(g)}</td>
+      <td style="color:var(--muted)">${s.bets}</td>
+      <td style="color:var(--muted)">${s.wins}</td>
+      <td><div class="wr-cell"><div class="wr-track"><div class="wr-fill" style="width:${wrPct}%"></div></div><span style="color:${wc};font-weight:600">${wr}%</span></div></td>
+      <td><div class="roi-cell"><div class="roi-track"><div class="roi-fill" style="width:${roiPct}%;background:${roiClr}"></div></div><span style="color:${rc};font-weight:700">${roiStr}</span></div></td>
+      <td style="color:${evc};font-weight:600">${avgEv !== '—' ? '+'+avgEv+'%' : '—'}</td>
     </tr>`;
   }).join('');
   const tbody = $('grade-tbody');
