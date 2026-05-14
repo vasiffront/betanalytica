@@ -97,10 +97,10 @@ def calculate_lambdas(hs, hc, as_, ac, ng=5, league=''):
     games = max(ng, 1)
     hs_pg = hs / games; hc_pg = hc / games
     as_pg = as_ / games; ac_pg = ac / games
-    home_attack  = hs_pg / L
-    away_defense = ac_pg / L
-    away_attack  = as_pg / L
-    home_defense = hc_pg / L
+    home_attack  = hs_pg / avg_home
+    away_defense = ac_pg / avg_home
+    away_attack  = as_pg / avg_away
+    home_defense = hc_pg / avg_away
     lh = home_attack * away_defense * avg_home
     la = away_attack * home_defense * avg_away
     return max(min(lh, 4.5), 0.50), max(min(la, 4.5), 0.50)
