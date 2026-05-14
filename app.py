@@ -262,7 +262,7 @@ def get_h2h_factor(home_id, away_id, max_meetings=10):
             count += 1
         if count < 3:
             return 1.0, 1.0, count
-        neutral = 1 / 3
+        neutral = 0.40
         lh_factor = round(max(min(1.0 + (home_wins / count - neutral) * 0.24, 1.08), 0.92), 3)
         la_factor = round(max(min(1.0 + (away_wins / count - neutral) * 0.24, 1.08), 0.92), 3)
         _H2H_CACHE[cache_key] = (lh_factor, la_factor, count, time.time())
@@ -314,11 +314,19 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
     p_tb25     = sum(p for (h, a), p in probs.items() if h + a >= 3)
     p_tb35     = sum(p for (h, a), p in probs.items() if h + a >= 4)
     p_btts_yes = sum(p for (h, a), p in probs.items() if h > 0 and a > 0)
-    if otb:    markets.append(('ТБ2.5',  p_tb25,           otb,    mp(otb)))
-    if otm:    markets.append(('ТМ2.5',  1.0 - p_tb25,     otm,    mp(otm)))
-    if otm35:  markets.append(('ТМ3.5',  1.0 - p_tb35,     otm35,  mp(otm35)))
-    if ob_yes: markets.append(('ОЗ Да',  p_btts_yes,       ob_yes, mp(ob_yes)))
-    if ob_no:  markets.append(('ОЗ Нет', 1.0 - p_btts_yes, ob_no,  mp(ob_no)))
+    if otb and otm:
+        vig_ov = 1/otb + 1/otm - 1
+        markets.append(('ТБ2.5', p_tb25,       otb, fair_prob(otb, vig_ov)))
+        markets.append(('ТМ2.5', 1.0 - p_tb25, otm, fair_prob(otm, vig_ov)))
+    elif otb:  markets.append(('ТБ2.5', p_tb25,       otb, mp(otb)))
+    elif otm:  markets.append(('ТМ2.5', 1.0 - p_tb25, otm, mp(otm)))
+    if otm35:  markets.append(('ТМ3.5', 1.0 - p_tb35, otm35, mp(otm35)))
+    if ob_yes and ob_no:
+        vig_btts = 1/ob_yes + 1/ob_no - 1
+        markets.append(('ОЗ Да',  p_btts_yes,       ob_yes, fair_prob(ob_yes, vig_btts)))
+        markets.append(('ОЗ Нет', 1.0 - p_btts_yes, ob_no,  fair_prob(ob_no,  vig_btts)))
+    elif ob_yes: markets.append(('ОЗ Да',  p_btts_yes,       ob_yes, mp(ob_yes)))
+    elif ob_no:  markets.append(('ОЗ Нет', 1.0 - p_btts_yes, ob_no,  mp(ob_no)))
 
     bets = {}
     for name, model_p, odd, market_p in markets:
@@ -347,7 +355,7 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
             'conf':        round(conf,     1),
             'grade':       grade,
             'vr':          round(vr, 2),
-            'logical':     round(h_prob * (conf / 100), 4),
+            'logical':     round(ev_val * (conf / 100), 4),
         }
 
     ranked = sorted(bets.items(), key=lambda x: x[1]['logical'], reverse=True)
@@ -596,7 +604,7 @@ def _form_pts(form_str):
         return None
     decay  = [1.0, 0.80, 0.64, 0.51, 0.41]
     chars  = list(reversed(s))          # chars[0] = most recent game
-    raw    = sum((3 if c == 'W' else 1 if c == 'D' else 0) * decay[i]
+    raw    = sum((3 if c == 'W' else 1.5 if c == 'D' else 0) * decay[i]
                  for i, c in enumerate(chars))
     max_w  = 3.0 * sum(decay[:len(chars)])
     return round(raw / max_w * len(chars) * 3, 1) if max_w else None
