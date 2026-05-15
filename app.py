@@ -332,7 +332,7 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
     for name, model_p, odd, market_p in markets:
         if name in _DISABLED_MARKETS:
             continue
-        if name == '1X' and odd < 1.35:
+        if name == '1X' and odd < 1.40:
             continue
         h_prob = hybrid_prob(model_p, market_p)
         ev_val = calc_ev(h_prob, odd)
