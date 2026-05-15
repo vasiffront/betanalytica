@@ -91,12 +91,13 @@ def match_probabilities(lh, la):
 
 # ─── Lambda Calculation ───────────────────────────────────────────────────────
 
-def calculate_lambdas(hs, hc, as_, ac, ng=5, league=''):
+def calculate_lambdas(hs, hc, as_, ac, ng=5, league='', hg=None, ag=None):
     """Strength-index model using league-specific goal averages for normalization."""
     avg_home, avg_away, L = _league_consts(league)
-    games = max(ng, 1)
-    hs_pg = hs / games; hc_pg = hc / games
-    as_pg = as_ / games; ac_pg = ac / games
+    hgames = max(hg or ng, 1)
+    agames = max(ag or ng, 1)
+    hs_pg = hs / hgames; hc_pg = hc / hgames
+    as_pg = as_ / agames; ac_pg = ac / agames
     home_attack  = hs_pg / avg_home
     away_defense = ac_pg / avg_home
     away_attack  = as_pg / avg_away
@@ -204,7 +205,16 @@ def get_team_season(team_id, side='total'):
     if split and split[2] >= 3:
         return split
     if total and total[2]:
-        return total
+        sc, cc, gp = total
+        # Scale total stats to home/away context so calculate_lambdas
+        # normalizes correctly (total avg ≈ L, but we need home/away context).
+        if side == 'home':
+            sc = round(sc * AVG_HOME_GOALS / LEAGUE_GOALS_PER_GAME)
+            cc = round(cc * AVG_AWAY_GOALS / LEAGUE_GOALS_PER_GAME)
+        elif side == 'away':
+            sc = round(sc * AVG_AWAY_GOALS / LEAGUE_GOALS_PER_GAME)
+            cc = round(cc * AVG_HOME_GOALS / LEAGUE_GOALS_PER_GAME)
+        return sc, cc, gp
     return 0, 0, 5
 
 
@@ -273,7 +283,7 @@ def get_h2h_factor(home_id, away_id, max_meetings=10):
 
 # ─── Core analysis helper ─────────────────────────────────────────────────────
 
-def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, league='', h2h=(1.0, 1.0)):
+def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, league='', h2h=(1.0, 1.0), hg=None, ag=None):
     """Run full Poisson + EV analysis. Returns match_data dict ready for SAVED_MATCHES."""
     if not (odds.get('oh') and odds.get('ox') and odds.get('oa')):
         return {'id': str(uuid.uuid4()), 'home': home_team, 'away': away_team,
@@ -291,10 +301,10 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
     oh, ox, oa   = _o('oh'), _o('ox'), _o('oa')
     o1x, ox2     = _o('o1x', 1.5), _o('ox2', 1.5)
     otb          = _oopt('otb');    otm    = _oopt('otm')
-    otm35  = _oopt('otm35')
+    otb35  = _oopt('otb35'); otm35  = _oopt('otm35')
     ob_yes = _oopt('ob_yes'); ob_no  = _oopt('ob_no')
 
-    lh, la = calculate_lambdas(hs, hc, as_, ac, ng, league)
+    lh, la = calculate_lambdas(hs, hc, as_, ac, ng, league, hg, ag)
     lh = form_adjustment(lh, fh)
     la = form_adjustment(la, fa)
     lh = round(max(min(lh * h2h[0], 4.5), 0.50), 4)
@@ -320,7 +330,11 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
         markets.append(('ТМ2.5', 1.0 - p_tb25, otm, fair_prob(otm, vig_ov)))
     elif otb:  markets.append(('ТБ2.5', p_tb25,       otb, mp(otb)))
     elif otm:  markets.append(('ТМ2.5', 1.0 - p_tb25, otm, mp(otm)))
-    if otm35:  markets.append(('ТМ3.5', 1.0 - p_tb35, otm35, mp(otm35)))
+    if otb35 and otm35:
+        vig_35 = 1/otb35 + 1/otm35 - 1
+        markets.append(('ТМ3.5', 1.0 - p_tb35, otm35, fair_prob(otm35, vig_35)))
+    elif otm35:
+        markets.append(('ТМ3.5', 1.0 - p_tb35, otm35, mp(otm35)))
     if ob_yes and ob_no:
         vig_btts = 1/ob_yes + 1/ob_no - 1
         markets.append(('ОЗ Да',  p_btts_yes,       ob_yes, fair_prob(ob_yes, vig_btts)))
@@ -791,7 +805,7 @@ def analyze_all():
             h2h_lh, h2h_la, h2h_n = get_h2h_factor(m['home_id'], m['away_id'])
             result = _run_analysis(
                 m['home'], m['away'], hs, hc, as_, ac, fh, fa, ng,
-                m.get('odds', {}), m.get('league', ''), (h2h_lh, h2h_la)
+                m.get('odds', {}), m.get('league', ''), (h2h_lh, h2h_la), hg=hg, ag=ag
             )
             result['h2h_n'] = h2h_n
             if not result.get('best'):
