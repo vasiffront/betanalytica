@@ -92,12 +92,21 @@ def match_probabilities(lh, la):
 # ─── Lambda Calculation ───────────────────────────────────────────────────────
 
 def calculate_lambdas(hs, hc, as_, ac, ng=5, league='', hg=None, ag=None):
-    """Strength-index model using league-specific goal averages for normalization."""
+    """Strength-index model with Bayesian shrinkage toward league priors.
+
+    Shrinkage prior k=5 means: at 5 games observed → 50% blend with league mean;
+    at 15 games → 25%; at 25+ games → <17%. Prevents extreme lambdas from small
+    samples (e.g. 3 home games with 6 goals scored).
+    Prior for home scoring  = avg_home; for home conceding = avg_away (and vice-versa).
+    """
     avg_home, avg_away, L = _league_consts(league)
     hgames = max(hg or ng, 1)
     agames = max(ag or ng, 1)
-    hs_pg = hs / hgames; hc_pg = hc / hgames
-    as_pg = as_ / agames; ac_pg = ac / agames
+    k = 5  # Bayesian prior weight in game-equivalents
+    hs_pg = (hs + avg_home * k) / (hgames + k)
+    hc_pg = (hc + avg_away * k) / (hgames + k)
+    as_pg = (as_ + avg_away * k) / (agames + k)
+    ac_pg = (ac + avg_home * k) / (agames + k)
     home_attack  = hs_pg / avg_home
     away_defense = ac_pg / avg_home
     away_attack  = as_pg / avg_away
@@ -143,6 +152,17 @@ def dynamic_kelly(k, conf):
     if conf < 55: return k * 0.55
     if conf < 70: return k * 0.75
     return k * 1.00
+
+def calibrate_prob(p):
+    """Compress probabilities toward 0.5 to correct for empirical overconfidence.
+
+    Empirical data shows ~10pp overconfidence in the 70-80% and >80% zones.
+    Without correction, Kelly overbets by 40-60% (e.g. predicts 75%, true is 65%:
+    Kelly 0.50 instead of 0.30). Factor 0.88 gives ~12% compression, reducing
+    bet sizes safely while preserving all profitable signals.
+    Applied to the final hybrid probability before EV and Kelly are computed.
+    """
+    return 0.50 + (p - 0.50) * 0.88
 
 # ─── Confidence & Grading ─────────────────────────────────────────────────────
 
@@ -348,7 +368,7 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
             continue
         if name == '1X' and odd < 1.40:
             continue
-        h_prob = hybrid_prob(model_p, market_p)
+        h_prob = calibrate_prob(hybrid_prob(model_p, market_p))
         ev_val = calc_ev(h_prob, odd)
         if ev_val <= 0:
             continue
@@ -612,6 +632,9 @@ def _fetch_oapi_today():
 def _form_pts(form_str):
     """Exponential-decay form score (0–15 scale, 7.5 = neutral).
     Most recent game carries full weight; each prior game decays by 0.80×.
+    Sequences shorter than 5 games are shrunk toward 7.5 (neutral) to
+    reflect small-sample uncertainty — prevents "WW" from scoring below
+    neutral due to scale mismatch with form_adjustment's fixed 7.5 pivot.
     """
     s = (form_str or '').strip().upper()[-5:]
     if not s:
@@ -621,7 +644,11 @@ def _form_pts(form_str):
     raw    = sum((3 if c == 'W' else 1.5 if c == 'D' else 0) * decay[i]
                  for i, c in enumerate(chars))
     max_w  = 3.0 * sum(decay[:len(chars)])
-    return round(raw / max_w * len(chars) * 3, 1) if max_w else None
+    if not max_w:
+        return None
+    raw_15 = raw / max_w * 15.0           # always normalize to 0–15 scale
+    shrink = min(len(chars) / 5.0, 1.0)  # shrink toward 7.5 for n < 5 games
+    return round(7.5 + (raw_15 - 7.5) * shrink, 1)
 
 
 def _american_to_decimal(ml):
