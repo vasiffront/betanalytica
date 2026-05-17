@@ -162,7 +162,7 @@ def calibrate_prob(p):
     bet sizes safely while preserving all profitable signals.
     Applied to the final hybrid probability before EV and Kelly are computed.
     """
-    return 0.50 + (p - 0.50) * 0.88
+    return 0.50 + (p - 0.50) * 0.75
 
 # ─── Confidence & Grading ─────────────────────────────────────────────────────
 
@@ -194,7 +194,7 @@ def confidence_score(ev_val, model_p, market_p, k_raw, odd=2.0):
 
 _GRADE_C_WHITELIST = {'ТБ2.5', 'ОЗ Да'}
 _DISABLED_MARKETS  = {'ТБ3.5'}  # historically −ROI, disabled
-_GRADE_A_ONLY     = {'ТМ2.5', 'ОЗ Нет', 'X2'}  # historically −ROI at B; require Grade A
+_GRADE_A_ONLY     = {'ТМ2.5', 'ОЗ Нет', 'X2', '1X', 'П1'}  # historically −ROI at B; require Grade A
 
 def bet_grade(conf, ev_val, name=''):
     if conf >= 68 and ev_val >= 0.08: return "A"
@@ -366,7 +366,7 @@ def _run_analysis(home_team, away_team, hs, hc, as_, ac, fh, fa, ng, odds, leagu
     for name, model_p, odd, market_p in markets:
         if name in _DISABLED_MARKETS:
             continue
-        if name == '1X' and odd < 1.40:
+        if name == '1X' and odd < 1.50:
             continue
         h_prob = calibrate_prob(hybrid_prob(model_p, market_p))
         ev_val = calc_ev(h_prob, odd)
